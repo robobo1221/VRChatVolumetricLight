@@ -97,7 +97,7 @@
                 float depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord));
                 float eyeDepth = LinearEyeDepth(depth) * linCorrect;
 
-                eyeDepth = min(eyeDepth, 100.0);
+                eyeDepth = min(eyeDepth, 50.0);
                 float3 worldPosition = eyeDepth * worldVector + _WorldSpaceCameraPos;
             
                 float dither = bayer16(fragCoord);
