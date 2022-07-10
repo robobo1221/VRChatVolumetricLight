@@ -28,6 +28,7 @@
         LOD 100
         
         Pass {
+            name "Volumetric Light Pass"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
@@ -96,7 +97,7 @@
                 float depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord));
                 float eyeDepth = LinearEyeDepth(depth) * linCorrect;
 
-                eyeDepth = min(eyeDepth, 50.0);
+                eyeDepth = min(eyeDepth, 100.0);
                 float3 worldPosition = eyeDepth * worldVector + _WorldSpaceCameraPos;
             
                 float dither = bayer16(fragCoord);
@@ -119,86 +120,37 @@
         }
 
         pass {
+            name "Volumetric Light X filter"
             CGPROGRAM
             #pragma vertex vert
             #pragma fragment frag
             #pragma target 5.0
 
-            sampler2D _VolumeLightTexture;
-            sampler2D _BackgroundTexture;
+            #define FILTER_ITTERATION 0   // 0 = x, 1 = y
+            #define VL_TEX _VolumeLightTexture
+            #define VL_TEX_SIZE _VolumeLightTexture_TexelSize
 
-            sampler2D _CameraDepthTexture;
+            #include "cginc/Template/Filter.cginc"
 
-            float4 _VolumeLightTexture_TexelSize;
+            ENDCG
+        }
 
-            #include "UnityCG.cginc"
+        GrabPass {
+            "_VolumeLightTextureX"
+        }
 
-            #include "cginc/Syntax.cginc"
-            #include "cginc/Utility.cginc"
-            #include "cginc/VolumetricLight/VolumetricLightConstants.cginc"
+        pass {
+            name "Volumetric Light Y filter"
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma target 5.0
 
-            struct v2f {
-                float4 texcoord : TEXCOORD0;
-                float4 vertex : SV_POSITION;
-            };
+            #define FILTER_ITTERATION 1   // 0 = x, 1 = y
+            #define VL_TEX _VolumeLightTextureX
+            #define VL_TEX_SIZE _VolumeLightTextureX_TexelSize
 
-            v2f vert (appdata_base v) {
-                v2f o;
-
-                o.vertex = UnityObjectToClipPos(v.vertex);
-                o.texcoord = ComputeGrabScreenPos(o.vertex);
-
-                return o;
-            }
-
-            struct fragOutput {
-                float4 color : COLOR;
-            };
-
-            float4 filterVolumetricLight(sampler2D tex, float2 texcoord) {
-                int blurSize = 2;
-
-                float2 rTexelSize = 1.0 / _VolumeLightTexture_TexelSize.zw;
-
-                float4 result = float4(0.0, 0.0, 0.0, 0.0);
-                float totalWeight = 0.0;
-
-                float centerDepth = sampleLinearDepth(_CameraDepthTexture, texcoord);
-
-                for (int i = -blurSize; i <= blurSize; i++) {
-                    for (int j = -blurSize; j <= blurSize; j++) {
-                        float2 offset = float2(i, j);
-                        float2 newCoord = texcoord + offset * rTexelSize;
-
-                        float offsetDepth = sampleLinearDepth(_CameraDepthTexture, newCoord);
-                        float depthWeight = exp(-abs(centerDepth - offsetDepth) * 4.0 / centerDepth) + 1e-4;
-
-                        float weight = calculateGaussianWeight(offset * 0.5) * depthWeight;
-
-                        result += tex2D(_VolumeLightTexture, newCoord) * weight;
-                        totalWeight += weight;
-                    }
-                }
-
-                return result / totalWeight;
-            }
-
-            fragOutput frag (v2f i) {
-                fragOutput o;
-
-                float2 texcoord = i.texcoord.xy / i.texcoord.w;
-
-                float4 backgroundColor = tex2D(_BackgroundTexture, texcoord);
-                float4 VolumetricLight = filterVolumetricLight(_VolumeLightTexture, texcoord);
-
-                float3 transmittance = exp(-VolumetricLight.a * extinctionCoefficient);
-
-                backgroundColor.rgb = backgroundColor.rgb * transmittance + VolumetricLight.rgb;
-                
-                o.color = backgroundColor;
-
-                return o;
-            }
+            #include "cginc/Template/Filter.cginc"
 
             ENDCG
         }
