@@ -48,7 +48,7 @@ float4 filterVolumetricLight(sampler2D tex, float2 texcoord) {
         float2 newCoord = texcoord;
 
         // 0, 1 = x, y
-        newCoord[FILTER_ITTERATION] += offset * rTexelSize.x;
+        newCoord[FILTER_ITTERATION] += offset * rTexelSize[FILTER_ITTERATION];
 
         float offsetDepth = sampleLinearDepth(_CameraDepthTexture, newCoord);
         float depthWeight = exp(-abs(centerDepth - offsetDepth) * 4.0 / centerDepth) + 1e-4;
