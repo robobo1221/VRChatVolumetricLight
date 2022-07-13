@@ -1,4 +1,6 @@
-﻿Shader "Custom/Volumetric Light" {
+﻿// Upgrade NOTE: replaced 'mul(UNITY_MATRIX_MVP,*)' with 'UnityObjectToClipPos(*)'
+
+Shader "Custom/Volumetric Light" {
     Properties {
         [HideInInspector]_NoiseTex ("Noise Texture", 2D) = "white" {}
         [HideInInspector]_ShadowMapTexture ("", any) = "" {}
@@ -26,6 +28,66 @@
 
         Lighting On
         LOD 100
+
+        pass {
+            name "blitDepth"
+            CGPROGRAM
+
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma target 5.0
+
+            sampler2D _CameraDepthTexture;
+            
+            #include "UnityCG.cginc"
+
+            #include "cginc/GlobalSettings.cginc"
+
+            #include "cginc/Syntax.cginc"
+            #include "cginc/Utility.cginc"
+
+            struct v2f {
+                float4 texcoord : TEXCOORD0;
+                float4 vertex : SV_POSITION;
+            };
+
+            v2f vert (appdata_base v) {
+                v2f o;
+
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.texcoord = ComputeGrabScreenPos(o.vertex);
+
+                return o;
+            }
+
+            struct fragOutput {
+                float4 color : COLOR;
+            };
+
+            fragOutput frag (v2f i) {
+                fragOutput o;
+
+                float2 texcoord = i.texcoord.xy / i.texcoord.w;
+                float invFactor = 1.0 / SCALEDOWN_FACTOR;
+                
+                if (texcoord.x > invFactor || texcoord.y > invFactor) {
+                    o.color = float4(0.0, 0.0, 0.0, 0.0);
+                    return o;
+                }
+
+                float depth = sampleLinearDepth(_CameraDepthTexture, texcoord * SCALEDOWN_FACTOR);
+
+                o.color = float4(depth, 0.0, 0.0, 1.0);
+
+                return o;
+            }
+
+            ENDCG
+        }
+
+        GrabPass {
+            "_ScaledDepthTexLinear"
+        }
         
         Pass {
             name "Volumetric Light Pass"
@@ -57,6 +119,8 @@
 
             #include "UnityCG.cginc"
 
+            #include "cginc/GlobalSettings.cginc"
+
             #include "cginc/Syntax.cginc"
             #include "cginc/Utility.cginc"
             #include "cginc/SpaceUtility.cginc"
@@ -68,14 +132,39 @@
                 float4 texcoord : TEXCOORD0;
                 float3 worldDirection : TEXCOORD1;
                 float4 vertex : SV_POSITION;
-            }; 
+            };
+
+            float4 reconstructClipFromScreen(float4 screen) {
+                float4 clip = screen;
+
+            #if UNITY_UV_STARTS_AT_TOP
+                float scale = -1.0;
+            #else
+                float scale = 1.0;
+            #endif
+
+            #ifdef UNITY_SINGLE_PASS_STEREO
+                float4 scaleOffset = unity_StereoScaleOffset[unity_StereoEyeIndex];
+
+                clip.xy = (clip.xy - scaleOffset.xy * scaleOffset.w) / scaleOffset.xy;
+            #endif
+
+                clip.xy -= screen.w * 0.5f;
+                clip.y /= scale;
+
+                return clip * float2(2.0, 1.0).xxyy;
+            }
 
             v2f vert (appdata_base v) {
                 v2f o;
 
-                o.worldDirection = mul(unity_ObjectToWorld, v.vertex).xyz - _WorldSpaceCameraPos;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.texcoord = ComputeGrabScreenPos(o.vertex);
+
+                float4 vPos = reconstructClipFromScreen(o.texcoord * float4(SCALEDOWN_FACTOR, SCALEDOWN_FACTOR, 1.0, 1.0));
+                float4 vPosWS = mul(inverse(UNITY_MATRIX_MVP), vPos);
+
+                o.worldDirection = -WorldSpaceViewDir(vPosWS).xyz;
 
                 return o;
             }
@@ -89,6 +178,15 @@
 
                 float2 texcoord = i.texcoord.xy / i.texcoord.w;
                 float2 fragCoord = texcoord * _BackgroundTexture_TexelSize.zw;
+
+                float invFactor = 1.0 / SCALEDOWN_FACTOR;
+
+                if (texcoord.x > invFactor || texcoord.y > invFactor) {
+                    o.color = float4(0.0, 0.0, 0.0, 0.0);
+                    return o;
+                }
+
+                texcoord *= SCALEDOWN_FACTOR;
 
                 float3 worldVector = normalize(i.worldDirection);
                 float3 forward = normalize(mul((float3x3)unity_CameraToWorld, float3(0,0,1)));
@@ -130,6 +228,8 @@
             #define VL_TEX _VolumeLightTexture
             #define VL_TEX_SIZE _VolumeLightTexture_TexelSize
 
+            #include "cginc/GlobalSettings.cginc"
+
             #include "cginc/Template/Filter.cginc"
 
             ENDCG
@@ -149,6 +249,8 @@
             #define FILTER_ITTERATION 1   // 0 = x, 1 = y
             #define VL_TEX _VolumeLightTextureX
             #define VL_TEX_SIZE _VolumeLightTextureX_TexelSize
+
+            #include "cginc/GlobalSettings.cginc"
 
             #include "cginc/Template/Filter.cginc"
 

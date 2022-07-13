@@ -5,6 +5,7 @@ sampler2D _BackgroundTexture;
 #endif
 
 sampler2D _CameraDepthTexture;
+sampler2D _ScaledDepthTexLinear;
 
 float4 VL_TEX_SIZE;
 int _Quality;
@@ -41,7 +42,7 @@ float4 filterVolumetricLight(sampler2D tex, float2 texcoord) {
     float4 result = float4(0.0, 0.0, 0.0, 0.0);
     float totalWeight = 0.0;
 
-    float centerDepth = sampleLinearDepth(_CameraDepthTexture, texcoord);
+    float centerDepth = sampleLinearDepth(_CameraDepthTexture, texcoord * SCALEDOWN_FACTOR);
 
     for (int i = -blurSize; i <= blurSize; i++) {
         float offset = float(i);
@@ -50,7 +51,7 @@ float4 filterVolumetricLight(sampler2D tex, float2 texcoord) {
         // 0, 1 = x, y
         newCoord[FILTER_ITTERATION] += offset * rTexelSize[FILTER_ITTERATION];
 
-        float offsetDepth = sampleLinearDepth(_CameraDepthTexture, newCoord);
+        float offsetDepth = tex2D(_ScaledDepthTexLinear, newCoord).x;
         float depthWeight = exp(-abs(centerDepth - offsetDepth) * 4.0 / centerDepth) + 1e-4;
 
         float weight = gaussianDistribution(offset * 0.5) * depthWeight;
@@ -72,7 +73,7 @@ fragOutput frag (v2f i) {
         o.color = filterVolumetricLight(VL_TEX, texcoord);
     #else
         float4 backgroundColor = tex2D(_BackgroundTexture, texcoord);
-        float4 VolumetricLight = filterVolumetricLight(VL_TEX, texcoord);
+        float4 VolumetricLight = filterVolumetricLight(VL_TEX, texcoord / SCALEDOWN_FACTOR);
 
         float3 transmittance = exp(-VolumetricLight.a * extinctionCoefficient);
 
