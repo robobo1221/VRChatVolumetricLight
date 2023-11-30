@@ -9,6 +9,8 @@ sampler2D _CameraDepthTexture;
 float4 VL_TEX_SIZE;
 int _Quality;
 
+float _VRChatMirrorMode;
+
 #include "UnityCG.cginc"
 
 #include "cginc/Syntax.cginc"
@@ -63,6 +65,8 @@ float4 filterVolumetricLight(sampler2D tex, float2 texcoord) {
 }
 
 fragOutput frag (v2f i) {
+    if (_VRChatMirrorMode > 0) discard;
+
     fragOutput o;
 
     float2 texcoord = i.texcoord.xy / i.texcoord.w;

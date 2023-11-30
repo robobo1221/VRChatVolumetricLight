@@ -16,7 +16,7 @@
     }
 
     SubShader {
-        Tags { "Queue"="Transparent+3" "LightMode"="ForwardBase"}
+        Tags { "Queue"="Transparent+3" "LightMode"="Vertex"}
         // No culling or depth
         Cull Off ZWrite Off ZTest Always
 
@@ -33,6 +33,8 @@
             #pragma vertex vert
             #pragma fragment frag
             #pragma target 5.0
+            #pragma exclude_renderers d3d11_9x
+            #pragma exclude_renderers d3d9
 
             float _Density;
             float _SunMult;
@@ -50,6 +52,9 @@
 
             float4 _BackgroundTexture_TexelSize;
             float4 _NoiseTex_TexelSize;
+
+            float _VRChatMirrorMode;
+            float3 _VRChatMirrorCameraPos;
 
             uniform float4 _LightColor0;
 
@@ -73,7 +78,9 @@
             v2f vert (appdata_base v) {
                 v2f o;
 
-                o.worldDirection = mul(unity_ObjectToWorld, v.vertex).xyz - _WorldSpaceCameraPos;
+                float3 cameraPos = _VRChatMirrorMode > 0 ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
+
+                o.worldDirection = mul(unity_ObjectToWorld, v.vertex).xyz - cameraPos;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.texcoord = ComputeGrabScreenPos(o.vertex);
 
@@ -84,7 +91,19 @@
                 float4 color : COLOR;
             };
 
+            float cameraToMirror(float3 worldVector) {
+                float3 planeNormal = worldVector;
+                float zNear = _ProjectionParams.y;
+                float3 originToCamera = _WorldSpaceCameraPos;
+
+                float originToCameradistance = length(dot(originToCamera, planeNormal));
+                float originToPlaneDistance = zNear - originToCameradistance;
+
+                return originToPlaneDistance;
+            }
+
             fragOutput frag (v2f i) {
+                if (_VRChatMirrorMode > 0) discard;
                 fragOutput o;
 
                 float2 texcoord = i.texcoord.xy / i.texcoord.w;
@@ -94,18 +113,35 @@
                 float3 forward = normalize(mul((float3x3)unity_CameraToWorld, float3(0,0,1)));
                 float linCorrect = 1.0 / dot(worldVector, forward);
 
+                float3 cameraPos = _VRChatMirrorMode > 0 ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
+
                 float depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord));
+
                 float eyeDepth = LinearEyeDepth(depth) * linCorrect;
 
+                //if (_VRChatMirrorMode > 0) {
+                //    eyeDepth = LinearEyeDepth(depth);
+                //}
+
                 eyeDepth = min(eyeDepth, 50.0);
-                float3 worldPosition = eyeDepth * worldVector + _WorldSpaceCameraPos;
+                float3 worldPosition = eyeDepth * worldVector + cameraPos;
+                
+                // if (_VRChatMirrorMode > 0) {
+                //     o.color = float4((float3)(linCorrect / dot(worldVector, unity_CameraWorldClipPlanes[5].xyz)) * 0.1, 11111111.0);
+                //     o.color = float4((float3)(LinearEyeDepth(depth) > 0.5), 11111111.0);
+                //     o.color = float4((float3)(-cameraToMirror(worldVector)), 11111111.0);
+                //     return o;
+                // } else {
+                //     o.color = float4(0.0, 0.0, 0.0, 0.0);
+                //     return o;
+                // }
             
                 float dither = bayer16(fragCoord);
                 float3 lightDirection = normalize(_WorldSpaceLightPos0.xyz);
 
                 float4 volumetricLight = float4(0.0, 0.0, 0.0, 0.0);
 
-                calculateVolumetricLight(volumetricLight, _WorldSpaceCameraPos, worldPosition, worldVector, lightDirection, dither, linCorrect);
+                calculateVolumetricLight(volumetricLight, cameraPos, worldPosition, worldVector, lightDirection, dither, linCorrect);
 
                 o.color = volumetricLight;
 
