@@ -9,6 +9,7 @@
         _SunMult ("Light Intensity", Range(0.01, 20.0)) = 2.0
         _HeightFalloff ("Height Falloff", Range(0.0, 3.0)) = 0.1
         _HeightOffset ("Fog Height Offset", Float) = 0.0
+        _LocalLightFadeDist ("Local Light Fade Distance", Float) = 24.0
 
         _ForwardG ("Forward G", Range(0.0, 0.99)) = 0.8
         _BackwardG ("Backward G", Range(0.0, 0.99)) = 0.5
@@ -43,6 +44,7 @@
             float _ForwardG;
             float _BackwardG;
             float _GMix;
+            float _LocalLightFadeDist;
             float4 _Color;
 
             int _Quality;

@@ -128,11 +128,9 @@ float3 caclulatePointLight(float3 worldPos, float3 worldVector, float3 lightPos,
 
     if (qAtten.w < distSq) return float3(0.0, 0.0, 0.0);
 
-    float atten = 1.0 / (distSq * qAtten.z + 1.0);
-    //half3 lightdir = normalize(lightPos - worldPos);
+    float atten = saturate(sqrt(qAtten.w) - sqrt(distSq)) / (distSq * qAtten.z + 1e-2);
 
-    //float NoV = dot(lightdir, worldVector);
-
+    //float NoV = dot(-normalize(relPos), worldVector);
     //float phase = dualLobePhase(NoV, _ForwardG, _BackwardG);
 
     return lightCol /* * phase */ * atten * exp(-sqrt(distSq) * extinctionCoeff * _Density * currb);
@@ -149,20 +147,20 @@ float3 calculateSpotLight(float3 worldPos, float3 worldVector, float3 lightPos, 
 
     if (qAtten.w < distSq * spotEffect * spotEffect) return float3(0.0, 0.0, 0.0);
 
-    float atten = 1.0 / (distSq * qAtten.z + 1.0);
+    float atten = saturate(sqrt(qAtten.w) - sqrt(distSq * spotEffect * spotEffect)) / (distSq * qAtten.z + 1e-2);
     
     half spotAtten = saturate((spotEffect - qAtten.x) * qAtten.y);
     //float NoV = dot(-worldToLight, worldVector);
 
     //float phase = dualLobePhase(NoV, _ForwardG, _BackwardG);
 
-    return spotAtten * lightCol /* * phase */ * exp(-sqrt(distSq) * extinctionCoeff * _Density * currb);
+    return spotAtten /* * phase */ * atten * lightCol * exp(-sqrt(distSq) * extinctionCoeff * _Density * currb);
 }
 
 float3 calculateLights(float3 worldPos, float3 viewVector, float3 extinctionCoeff, float currb) {
     float3 totalLight = float3(0.0, 0.0, 0.0);
     float3 viewPos = mul(UNITY_MATRIX_V, float4(worldPos, 1.0)).xyz;
-    float max_atten = saturate(24.0 - length(viewPos));
+    float max_atten = saturate(_LocalLightFadeDist - length(viewPos));
 
     for (int i = 0; i < 8; i++) {
         if (unity_LightPosition[i].a != 1) {
@@ -271,7 +269,7 @@ void calculateVolumetricLight(inout float4 volumetricLight, float3 startPosition
 
     float3 sunLighting = sunScattering * _LightColor0.rgb * 2.0 * _SunMult;
     float3 skyLighting = skyScattering * phaseSky * unity_IndirectSpecColor.rgb;
-    float3 localLighting = localScattering * phaseSky;
+    float3 localLighting = localScattering * 2.0 * phaseSky;
 
     volumetricLight.xyz = (sunLighting + skyLighting + localLighting) * _Color * PI;
     volumetricLight.a = opticalDepth;
