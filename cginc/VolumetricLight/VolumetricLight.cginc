@@ -162,6 +162,7 @@ float3 calculateSpotLight(float3 worldPos, float3 worldVector, float3 lightPos, 
 float3 calculateLights(float3 worldPos, float3 viewVector, float3 extinctionCoeff, float currb) {
     float3 totalLight = float3(0.0, 0.0, 0.0);
     float3 viewPos = mul(UNITY_MATRIX_V, float4(worldPos, 1.0)).xyz;
+    float max_atten = saturate(24.0 - length(viewPos));
 
     for (int i = 0; i < 8; i++) {
         if (unity_LightPosition[i].a != 1) {
@@ -175,7 +176,7 @@ float3 calculateLights(float3 worldPos, float3 viewVector, float3 extinctionCoef
         }
     }
 
-    return totalLight;
+    return totalLight * max_atten;
 }
 
 void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 transmittance, float3 scatteringIntegral, float3 extinctionCoeff, float3 rayPosition, float3 viewVector, float sunPhase, float shadowMask, float depthToSun, float depthToSky, float currA, float currB) {
