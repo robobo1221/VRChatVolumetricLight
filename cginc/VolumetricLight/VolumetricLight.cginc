@@ -179,7 +179,7 @@ float3 calculateLights(float3 worldPos, float3 viewVector, float3 extinctionCoef
     float3 probeUv = (worldPos - _LightProbeRoot) / _LightProbeBounds;
 
     if (probeUv.x < 1.0 && probeUv.x > 0.0 && probeUv.y < 1.0 && probeUv.y > 0.0 && probeUv.z < 1.0 && probeUv.z > 0.0 ) {
-        totalLight += tex3D(_LightProbeTexture, probeUv).rgb;
+        totalLight += tex3D(_LightProbeTexture, probeUv).rgb * 4.0 * PI;
     }
 
     return totalLight;
