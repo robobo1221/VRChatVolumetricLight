@@ -178,7 +178,7 @@ float3 calculateLights(float3 worldPos, float3 viewVector, float3 extinctionCoef
 
     float3 probeUv = (worldPos - _LightProbeRoot) / _LightProbeBounds;
 
-    if (probeUv.x < 1.0 && probeUv.x > 0.0 && probeUv.y < 1.0 && probeUv.y > 0.0 && probeUv.z < 1.0 && probeUv.z > 0.0 ) {
+    if (probeUv.x < 1.2 && probeUv.x > -0.2 && probeUv.y < 1.2 && probeUv.y > -0.2 && probeUv.z < 1.2 && probeUv.z > -0.2 ) {   // Only do when in bounds
         totalLight += tex3D(_LightProbeTexture, probeUv).rgb * 4.0 * PI;
     }
 
@@ -189,7 +189,10 @@ void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skySca
     float3 sunShadowing = exp(-depthToSun * extinctionCoeff * currB);
     float3 skyShadowing = exp(-depthToSky * extinctionCoeff * currB);
     
-    sunScattering += scatteringIntegral * scatteringCoefficient * currA * sunPhase * sunShadowing * shadowMask * transmittance;
+    if (_LightColor0.a > 0.0) {
+        sunScattering += scatteringIntegral * scatteringCoefficient * currA * sunPhase * sunShadowing * shadowMask * transmittance;
+    }
+    
     skyScattering += scatteringIntegral * scatteringCoefficient * currA * skyShadowing * transmittance;
     localScattering += scatteringIntegral * scatteringCoefficient * currA * calculateLights(rayPosition, viewVector, extinctionCoeff, currB) * transmittance;
 }

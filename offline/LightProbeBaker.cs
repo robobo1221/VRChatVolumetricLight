@@ -3,7 +3,10 @@ using UnityEngine.Rendering;
 using UnityEditor;
 
 public class LightProbeBaker : MonoBehaviour {
+
+    #if UNITY_EDITOR
     public Material volumetricMaterial;
+    public int sampleDirections = 32;
     private Vector3 lightProbeRoot; // Store the root position of the light probe data
 
     [MenuItem("Tools/Bake Light Probes")]
@@ -44,8 +47,18 @@ public class LightProbeBaker : MonoBehaviour {
         // Generate a new HDR 3D texture based on the combined bounds
         Texture3D lightProbeTexture = GenerateLightProbeTexture(combinedBounds);
 
+        // Save the generated texture to a folder
+        string folderPath = "Assets/RoboGeneratedLightprops"; // Change this to your desired folder path
+        System.IO.Directory.CreateDirectory(folderPath);
+
+        string texturePath = folderPath + "/lightPropVolume.asset";
+        AssetDatabase.CreateAsset(lightProbeTexture, texturePath);
+
+        // Load the saved texture from the asset database
+        Texture3D savedTexture = AssetDatabase.LoadAssetAtPath<Texture3D>(texturePath);
+
         // Assign the generated texture to the material
-        volumetricMaterial.SetTexture("_LightProbeTexture", lightProbeTexture);
+        volumetricMaterial.SetTexture("_LightProbeTexture", savedTexture); 
 
         // Update shader properties
         UpdateShaderProperties(combinedBounds.size);
@@ -64,9 +77,9 @@ public class LightProbeBaker : MonoBehaviour {
             for (int y = 0; y < textureSize; y++) {
                 for (int z = 0; z < textureSize; z++) {
                     Vector3 samplePosition = new Vector3(
-                        bounds.min.x + x / (float)(textureSize) * bounds.size.x,
-                        bounds.min.y + y / (float)(textureSize) * bounds.size.y,
-                        bounds.min.z + z / (float)(textureSize) * bounds.size.z
+                        bounds.min.x + x / (float)(textureSize - 1) * bounds.size.x,
+                        bounds.min.y + y / (float)(textureSize - 1) * bounds.size.y,
+                        bounds.min.z + z / (float)(textureSize - 1) * bounds.size.z
                     );
 
                     // Sample HDR value from light probes
@@ -75,12 +88,11 @@ public class LightProbeBaker : MonoBehaviour {
 
                     // Convert the spherical harmonics data to HDR color
 
-                    int numDirections = 64;
-                    Vector3[] directions = new Vector3[numDirections];
-                    Color[] results = new Color[numDirections];
+                    Vector3[] directions = new Vector3[sampleDirections];
+                    Color[] results = new Color[sampleDirections];
 
                     // Generate random directions
-                    for (int i = 0; i < numDirections; i++) {
+                    for (int i = 0; i < sampleDirections; i++) {
                         directions[i] = UnityEngine.Random.onUnitSphere;
                     }
 
@@ -89,10 +101,10 @@ public class LightProbeBaker : MonoBehaviour {
 
                     // Calculate the mean color
                     Color color = Color.black;
-                    for (int i = 0; i < numDirections; i++) {
+                    for (int i = 0; i < sampleDirections; i++) {
                         color += results[i];
                     }
-                    color = color / numDirections;
+                    color = color / sampleDirections;
 
                     // Assign the color to the voxel in the 3D texture
                     lightProbeTexture.SetPixel(x, y, z, color);
@@ -115,4 +127,5 @@ public class LightProbeBaker : MonoBehaviour {
         volumetricMaterial.SetVector("_LightProbeBounds", boundsSize);
         volumetricMaterial.SetVector("_LightProbeRoot", lightProbeRoot);
     }
+    #endif
 }
