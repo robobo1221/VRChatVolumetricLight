@@ -174,7 +174,15 @@ float3 calculateLights(float3 worldPos, float3 viewVector, float3 extinctionCoef
         }
     }
 
-    return totalLight * max_atten;
+    totalLight *= max_atten;
+
+    float3 probeUv = (worldPos - _LightProbeRoot) / _LightProbeBounds;
+
+    if (probeUv.x < 1.0 && probeUv.x > 0.0 && probeUv.y < 1.0 && probeUv.y > 0.0 && probeUv.z < 1.0 && probeUv.z > 0.0 ) {
+        totalLight += tex3D(_LightProbeTexture, probeUv).rgb;
+    }
+
+    return totalLight;
 }
 
 void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 transmittance, float3 scatteringIntegral, float3 extinctionCoeff, float3 rayPosition, float3 viewVector, float sunPhase, float shadowMask, float depthToSun, float depthToSky, float currA, float currB) {
@@ -271,6 +279,6 @@ void calculateVolumetricLight(inout float4 volumetricLight, float3 startPosition
     float3 skyLighting = skyScattering * phaseSky * unity_IndirectSpecColor.rgb;
     float3 localLighting = localScattering * 2.0 * phaseSky;
 
-    volumetricLight.xyz = (sunLighting + skyLighting + localLighting) * _Color * PI;
+    volumetricLight.xyz = (localLighting + sunLighting + skyLighting) * _Color * PI;
     volumetricLight.a = opticalDepth;
 }

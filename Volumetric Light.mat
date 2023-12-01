@@ -19,6 +19,10 @@ Material:
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
+    - _LightProbeTexture:
+        m_Texture: {fileID: 0}
+        m_Scale: {x: 1, y: 1}
+        m_Offset: {x: 0, y: 0}
     - _NoiseTex:
         m_Texture: {fileID: 0}
         m_Scale: {x: 1, y: 1}
@@ -34,7 +38,15 @@ Material:
     - _GMix: 0.5
     - _HeightFalloff: 0.1
     - _HeightOffset: 0
+    - _LocalLightFadeDist: 24
+    - _MinObjectWidth: 24
     - _Quality: 1
     - _SunMult: 2
+    - _bbounds: 0
+    - _xbounds: 18.539116
+    - _ybounds: 5.543875
+    - _zbounds: 13.06403
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
+    - _LightProbeBounds: {r: 18.539116, g: 6.5, b: 38.670357, a: 0}
+    - _LightProbeRoot: {r: -7.362395, g: 0, b: -27.382881, a: 0}

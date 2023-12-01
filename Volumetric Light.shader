@@ -2,6 +2,9 @@
     Properties {
         [HideInInspector]_NoiseTex ("Noise Texture", 2D) = "white" {}
         [HideInInspector]_ShadowMapTexture ("", any) = "" {}
+        [HideInInspector]_LightProbeTexture ("Light Probe Texture", 3D) = "" {}
+        [HideInInspector]_LightProbeBounds ("Light Probe Bounds", Vector) = (0, 0, 0, 0)
+        [HideInInspector]_LightProbeRoot ("Light Probe Root", Vector) = (0, 0, 0, 0)
 
         [KeywordEnum(Low, Medium, High)] _Quality ("Quality", Int) = 1   // 0 = low, 1 = medium, 2 = high
         _Color ("Fog Color", Color) = (1.0, 1.0, 1.0, 1.0)
@@ -51,6 +54,10 @@
             
             sampler2D _CameraDepthTexture;
             sampler2D _NoiseTex;
+
+            sampler3D _LightProbeTexture;
+            float4 _LightProbeRoot;
+            float4 _LightProbeBounds;
 
             float4 _BackgroundTexture_TexelSize;
             float4 _NoiseTex_TexelSize;
