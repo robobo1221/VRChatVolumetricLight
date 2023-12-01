@@ -9,7 +9,7 @@ Material:
   m_PrefabAsset: {fileID: 0}
   m_Name: Volumetric Light
   m_Shader: {fileID: 4800000, guid: 04040bdc33e09bd43af5c78eb559ccd5, type: 3}
-  m_ShaderKeywords: _QUALITY_MEDIUM
+  m_ShaderKeywords: _LIGHTPROBEACTIVATED_OFF _QUALITY_MEDIUM
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -20,7 +20,7 @@ Material:
     serializedVersion: 3
     m_TexEnvs:
     - _LightProbeTexture:
-        m_Texture: {fileID: 11700000, guid: 4a22b524bc81d9749877a1a437ba7c38, type: 2}
+        m_Texture: {fileID: 11700000, guid: e2009e93c97decd44807799ef4261d3d, type: 2}
         m_Scale: {x: 1, y: 1}
         m_Offset: {x: 0, y: 0}
     - _NoiseTex:
@@ -38,6 +38,7 @@ Material:
     - _GMix: 0.5
     - _HeightFalloff: 0.1
     - _HeightOffset: 0
+    - _LightProbeActivated: 0
     - _LocalLightFadeDist: 24
     - _MinObjectWidth: 24
     - _Quality: 1
@@ -48,5 +49,5 @@ Material:
     - _zbounds: 13.06403
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _LightProbeBounds: {r: 19.19477, g: 5.864951, b: 13.026091, a: 0}
-    - _LightProbeRoot: {r: -6.108794, g: -0.06843686, b: -7.990136, a: 0}
+    - _LightProbeBounds: {r: 20.231758, g: 6.5, b: 38.670357, a: 0}
+    - _LightProbeRoot: {r: -7.362395, g: 0, b: -27.382881, a: 0}

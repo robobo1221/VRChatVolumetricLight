@@ -17,6 +17,8 @@
         _ForwardG ("Forward G", Range(0.0, 0.99)) = 0.8
         _BackwardG ("Backward G", Range(0.0, 0.99)) = 0.5
         _GMix ("G Mix", Range(0.0, 1.0)) = 0.5
+
+        [KeywordEnum(Off, On)] _LightProbeActivated ("Enable light probes", Int) = 1
     }
 
     SubShader {
@@ -58,6 +60,7 @@
             sampler3D _LightProbeTexture;
             float4 _LightProbeRoot;
             float4 _LightProbeBounds;
+            int _LightProbeActivated;
 
             float4 _BackgroundTexture_TexelSize;
             float4 _NoiseTex_TexelSize;

@@ -176,10 +176,15 @@ float3 calculateLights(float3 worldPos, float3 viewVector, float3 extinctionCoef
 
     totalLight *= max_atten;
 
-    float3 probeUv = (worldPos - _LightProbeRoot) / _LightProbeBounds;
+    if (_LightProbeActivated > 0) {
+        float3 probeUv = (worldPos - _LightProbeRoot) / _LightProbeBounds;
+        half padding = 0.2;
+        float3 d = abs(probeUv * 2.0 - 1.0);
+        float mask = saturate(1.0 - max(max(max(d.x, d.y), d.z) - 1.0, 0.0) / padding);
 
-    if (probeUv.x < 1.2 && probeUv.x > -0.2 && probeUv.y < 1.2 && probeUv.y > -0.2 && probeUv.z < 1.2 && probeUv.z > -0.2 ) {   // Only do when in bounds
-        totalLight += tex3D(_LightProbeTexture, probeUv).rgb * 4.0 * PI;
+        if (mask > 0.0) {   // Only when in bounds
+            totalLight += tex3D(_LightProbeTexture, probeUv).rgb * mask * mask * 4.0;
+        }
     }
 
     return totalLight;
