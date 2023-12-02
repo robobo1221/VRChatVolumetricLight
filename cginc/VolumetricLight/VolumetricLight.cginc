@@ -69,6 +69,11 @@ struct MultiScatterVariables {
     float phases[multiScatterTerms];
 };
 
+struct LocalLightVariables {
+    half4 positions[8];
+    half4 spotDirections[8];
+};
+
 ShadowRaymarchVariables generateRaymarchCascadeVariables(fixed4 cascadeWeight, float3 startPosition, float3 endPosition, float rSteps, float dither) {
     ShadowRaymarchVariables values;
 
@@ -122,75 +127,66 @@ MultiScatterVariables generadeMultiScatterValues(float NoV) {
     return values;
 }
 
-float3 caclulatePointLight(float3 worldPos, float3 worldVector, float3 lightPos, float3 lightCol, float4 qAtten, float3 extinctionCoeff, float currb) {
-    float3 relPos = worldPos - lightPos;
-    float distSq = dot(relPos, relPos);
-
-    if (qAtten.w < distSq) return float3(0.0, 0.0, 0.0);
-
-    float atten = saturate(sqrt(qAtten.w) - sqrt(distSq)) / (distSq * qAtten.z + 1e-2);
-
-    //float NoV = dot(-normalize(relPos), worldVector);
-    //float phase = dualLobePhase(NoV, _ForwardG, _BackwardG);
-
-    return lightCol /* * phase */ * atten * exp(-sqrt(distSq) * extinctionCoeff * _Density * currb);
-}
-
-float3 calculateSpotLight(float3 worldPos, float3 worldVector, float3 lightPos, float3 lightCol, float3 spotDir, float4 qAtten, float3 extinctionCoeff, float currb) {
-    half3 worldToLight = normalize(worldPos - lightPos);
-    half spotEffect = dot(worldToLight, -spotDir);
-
-    if (spotEffect < qAtten.x) return float3(0.0, 0.0, 0.0);
-    
-    float3 relPos = worldPos - lightPos;
-    float distSq = dot(relPos, relPos);
-
-    if (qAtten.w < distSq * spotEffect * spotEffect) return float3(0.0, 0.0, 0.0);
-
-    float atten = saturate(sqrt(qAtten.w) - sqrt(distSq * spotEffect * spotEffect)) / (distSq * qAtten.z + 1e-2);
-    
-    half spotAtten = saturate((spotEffect - qAtten.x) * qAtten.y);
-    //float NoV = dot(-worldToLight, worldVector);
-
-    //float phase = dualLobePhase(NoV, _ForwardG, _BackwardG);
-
-    return spotAtten /* * phase */ * atten * lightCol * exp(-sqrt(distSq) * extinctionCoeff * _Density * currb);
-}
-
-float3 calculateLights(float3 worldPos, float3 viewVector, float3 extinctionCoeff, float currb) {
-    float3 totalLight = float3(0.0, 0.0, 0.0);
-    float3 viewPos = mul(UNITY_MATRIX_V, float4(worldPos, 1.0)).xyz;
-    float max_atten = saturate(_LocalLightFadeDist - length(viewPos));
+LocalLightVariables generateLocalLightVariables() {
+    LocalLightVariables values;
 
     for (int i = 0; i < 8; i++) {
-        if (unity_LightPosition[i].a != 1) {
-            continue;
-        }
+        values.positions[i] = mul(unity_LightPosition[i], UNITY_MATRIX_V);  // Transpose of view matrix is the inverse.
+        values.positions[i].xyz += _WorldSpaceCameraPos;
+        values.positions[i].a = unity_LightPosition[i].a;
 
-        if (unity_LightAtten[i].x != -1) {
-            totalLight += calculateSpotLight(viewPos, viewVector, unity_LightPosition[i].xyz, unity_LightColor[i].rgb, unity_SpotDirection[i].xyz, unity_LightAtten[i], extinctionCoeff, currb);
-        } else {
-            totalLight += caclulatePointLight(viewPos, viewVector, unity_LightPosition[i].xyz, unity_LightColor[i].rgb, unity_LightAtten[i], extinctionCoeff, currb);
-        }
+        values.spotDirections[i] = mul(unity_SpotDirection[i], UNITY_MATRIX_V);
+        values.spotDirections[i].a = unity_SpotDirection[i].a;
+    }
+
+    return values;
+}
+
+float3 calculateCombinedLights(float3 worldPos, float4 lightPos, float3 lightCol, float3 spotDir, float4 qAtten, float3 extinctionCoeff, float currb) {
+    float3 relPos = worldPos - lightPos.xyz;
+    float distSq = dot(relPos, relPos);
+
+    float invDist = rsqrt(distSq);
+    float spotEffect = dot(relPos * invDist, -spotDir);
+    float atten = saturate(sqrt(qAtten.w) - sqrt(distSq)) / (distSq * qAtten.z + 1e-2);
+
+    float spotAtten = lerp(saturate((spotEffect - qAtten.x) * qAtten.y), 1.0, step(qAtten.x, 0));
+
+    return spotAtten * atten * 4.0 * lightCol * exp(-sqrt(distSq) * extinctionCoeff * _Density * currb) * step(1, lightPos.a);
+}
+
+float3 calculateLights(float3 worldPos, LocalLightVariables localLights, float3 extinctionCoeff, float currb) {
+    float3 totalLight = float3(0.0, 0.0, 0.0);
+    float max_atten = saturate(_LocalLightFadeDist - length(worldPos - _WorldSpaceCameraPos));
+
+    for (int i = 0; i < 8; i++) {
+        float4 lightPos = localLights.positions[i];
+        float4 lightAtten = unity_LightAtten[i];
+        float3 lightColor = unity_LightColor[i].rgb;
+
+        float3 lightContrib = calculateCombinedLights(
+            worldPos, lightPos, lightColor,
+            localLights.spotDirections[i].xyz, lightAtten, extinctionCoeff, currb
+        );
+
+        totalLight += lightContrib * step(1, lightPos.a);
     }
 
     totalLight *= max_atten;
 
     if (_LightProbeActivated > 0) {
         float3 probeUv = (worldPos - _LightProbeRoot) / _LightProbeBounds;
-        half padding = 0.2;
+        float padding = 0.2;
         float3 d = abs(probeUv * 2.0 - 1.0);
         float mask = saturate(1.0 - max(max(max(d.x, d.y), d.z) - 1.0, 0.0) / padding);
 
-        if (mask > 0.0) {   // Only when in bounds
-            totalLight += tex3D(_LightProbeTexture, probeUv).rgb * mask * mask * 4.0;
-        }
+        totalLight += tex3D(_LightProbeTexture, probeUv).rgb * mask * mask * 4.0;
     }
 
     return totalLight;
 }
 
-void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 transmittance, float3 scatteringIntegral, float3 extinctionCoeff, float3 rayPosition, float3 viewVector, float sunPhase, float shadowMask, float depthToSun, float depthToSky, float currA, float currB) {
+void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 transmittance, float3 scatteringIntegral, float3 extinctionCoeff, float3 rayPosition, LocalLightVariables localLights, float sunPhase, float shadowMask, float depthToSun, float depthToSky, float currA, float currB) {
     float3 sunShadowing = exp(-depthToSun * extinctionCoeff * currB);
     float3 skyShadowing = exp(-depthToSky * extinctionCoeff * currB);
     
@@ -199,10 +195,10 @@ void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skySca
     }
     
     skyScattering += scatteringIntegral * scatteringCoefficient * currA * skyShadowing * transmittance;
-    localScattering += scatteringIntegral * scatteringCoefficient * currA * calculateLights(rayPosition, viewVector, extinctionCoeff, currB) * transmittance;
+    localScattering += scatteringIntegral * scatteringCoefficient * currA * calculateLights(rayPosition, localLights, extinctionCoeff, currB) * transmittance;
 }
 
-void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 rayPosition, float3 viewVector, float3 shadowRayPosition, float3 lightDirection, float3 transmittance, float3 stepTransmittance, float3 extinctionCoeff, float density, MultiScatterVariables multiScatter) {
+void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 rayPosition, LocalLightVariables localLights, float3 shadowRayPosition, float3 lightDirection, float3 transmittance, float3 stepTransmittance, float3 extinctionCoeff, float density, MultiScatterVariables multiScatter) {
     float shadowMask = getShadow(shadowRayPosition);
     float depthToSun = calculateDepthAlongRay(rayPosition, lightDirection);
     float depthToSky = density;
@@ -214,7 +210,7 @@ void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skySca
 
     for (int i = 0; i < multiScatterTerms; ++i) {
         float sunPhase = multiScatter.phases[i];
-        calculateVolumetricLighting(sunScattering, skyScattering, localScattering, transmittance, scatteringIntegral, extinctionCoeff, rayPosition, viewVector, sunPhase, shadowMask, depthToSun, depthToSky, currA, currB);
+        calculateVolumetricLighting(sunScattering, skyScattering, localScattering, transmittance, scatteringIntegral, extinctionCoeff, rayPosition, localLights, sunPhase, shadowMask, depthToSun, depthToSky, currA, currB);
         
         currA *= multiScatterCoeffA;
         currB *= multiScatterCoeffB;
@@ -245,9 +241,6 @@ void calculateVolumetricLight(inout float4 volumetricLight, float3 startPosition
     int VL_STEPS = getVlSteps();
 
     float rSteps = 1.0 / float(VL_STEPS);
-    
-    float3 viewPos = mul(UNITY_MATRIX_V, float4(endPosition, 1.0)).xyz;
-    float3 viewVector = normalize(viewPos);
 
     float3 increment = (endPosition - startPosition) * rSteps;
     float3 rayPosition = startPosition + increment * dither;
@@ -265,6 +258,7 @@ void calculateVolumetricLight(inout float4 volumetricLight, float3 startPosition
     
     ShadowRaymarchCascades cascades = generateRaymarchCascadeValues(startPosition, endPosition, rSteps, dither);
     MultiScatterVariables multiScatter = generadeMultiScatterValues(NoV);
+    LocalLightVariables localLights = generateLocalLightVariables();
 
     for (int i = 0; i < VL_STEPS; ++i) {
         float density = calculateDensity(rayPosition);
@@ -275,7 +269,7 @@ void calculateVolumetricLight(inout float4 volumetricLight, float3 startPosition
         float viewZ = length(rayPosition - _WorldSpaceCameraPos) * linCorrect;
         float3 shadowRayPosition = getShadowRayPosition(cascades, viewZ);
 
-        calculateVolumetricLighting(sunScattering, skyScattering, localScattering, rayPosition, viewVector, shadowRayPosition, lightDirection, transmittance, stepTransmittance, extinctionCoeff, density, multiScatter);
+        calculateVolumetricLighting(sunScattering, skyScattering, localScattering, rayPosition, localLights, shadowRayPosition, lightDirection, transmittance, stepTransmittance, extinctionCoeff, density, multiScatter);
         
         transmittance *= stepTransmittance;
 
