@@ -152,7 +152,7 @@ float3 calculateCombinedLights(float3 worldPos, float4 lightPos, float3 lightCol
 
     float spotAtten = lerp(saturate((spotEffect - qAtten.x) * qAtten.y), 1.0, step(qAtten.x, 0));
 
-    return spotAtten * atten * 4.0 * lightCol * exp(-sqrt(distSq) * extinctionCoeff * _Density * currb) * step(1, lightPos.a);
+    return spotAtten * atten * lightCol * exp(-sqrt(distSq) * extinctionCoeff * _Density * currb) * step(1, lightPos.a);
 }
 
 float3 calculateLights(float3 worldPos, LocalLightVariables localLights, float3 extinctionCoeff, float currb) {
