@@ -131,22 +131,8 @@
 
                 float eyeDepth = LinearEyeDepth(depth) * linCorrect;
 
-                //if (_VRChatMirrorMode > 0) {
-                //    eyeDepth = LinearEyeDepth(depth);
-                //}
-
                 eyeDepth = min(eyeDepth, 50.0);
                 float3 worldPosition = eyeDepth * worldVector + cameraPos;
-                
-                // if (_VRChatMirrorMode > 0) {
-                //     o.color = float4((float3)(linCorrect / dot(worldVector, unity_CameraWorldClipPlanes[5].xyz)) * 0.1, 11111111.0);
-                //     o.color = float4((float3)(LinearEyeDepth(depth) > 0.5), 11111111.0);
-                //     o.color = float4((float3)(-cameraToMirror(worldVector)), 11111111.0);
-                //     return o;
-                // } else {
-                //     o.color = float4(0.0, 0.0, 0.0, 0.0);
-                //     return o;
-                // }
             
                 float dither = bayer16(fragCoord);
                 float3 lightDirection = normalize(_WorldSpaceLightPos0.xyz);

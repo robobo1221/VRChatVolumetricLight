@@ -174,15 +174,6 @@ float3 calculateLights(float3 worldPos, LocalLightVariables localLights, float3 
 
     totalLight *= max_atten;
 
-    if (_LightProbeActivated > 0) {
-        float3 probeUv = (worldPos - _LightProbeRoot) / _LightProbeBounds;
-        float padding = 0.2;
-        float3 d = abs(probeUv * 2.0 - 1.0);
-        float mask = saturate(1.0 - max(max(max(d.x, d.y), d.z) - 1.0, 0.0) / padding);
-
-        totalLight += tex3D(_LightProbeTexture, probeUv).rgb * mask * mask * 4.0;
-    }
-
     return totalLight;
 }
 
@@ -214,6 +205,17 @@ void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skySca
         
         currA *= multiScatterCoeffA;
         currB *= multiScatterCoeffB;
+    }
+
+    if (_LightProbeActivated > 0) {
+        float3 probeUv = (rayPosition - _LightProbeRoot) / _LightProbeBounds;
+        float padding = 0.2;
+        float3 d = abs(probeUv * 2.0 - 1.0);
+        float mask = saturate(1.0 - max(max(max(d.x, d.y), d.z) - 1.0, 0.0) / padding);
+
+        float3 lightProbeData = tex3D(_LightProbeTexture, probeUv).rgb;
+
+        localScattering += scatteringIntegral * scatteringCoefficient * transmittance * lightProbeData * mask * mask * 4.0 * (1.0 / (1.0 - multiScatterCoeffA));
     }
 }
 
