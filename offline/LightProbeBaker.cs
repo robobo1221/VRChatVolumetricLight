@@ -7,6 +7,7 @@ public class LightProbeBaker : MonoBehaviour {
     #if UNITY_EDITOR
     public Material volumetricMaterial;
     public int sampleDirections = 32;
+    public int textureSize = 64;
     private Vector3 lightProbeRoot; // Store the root position of the light probe data
 
     [MenuItem("Tools/Bake Light Probes")]
@@ -65,7 +66,6 @@ public class LightProbeBaker : MonoBehaviour {
     }
 
     Texture3D GenerateLightProbeTexture(Bounds bounds) {
-        int textureSize = 64; // Adjust the size as needed
         Texture3D lightProbeTexture = new Texture3D(textureSize, textureSize, textureSize, TextureFormat.RGBAFloat, true);
 
         // Set the filter mode and wrap mode as needed
