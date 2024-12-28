@@ -16,7 +16,7 @@
 
         _ForwardG ("Forward G", Range(0.0, 0.99)) = 0.8
         _BackwardG ("Backward G", Range(0.0, 0.99)) = 0.5
-        _GMix ("G Mix", Range(0.0, 1.0)) = 0.5
+        _GMix ("G Mix", Range(0.0, 1.0)) = 0.5 
 
         [KeywordEnum(Off, On)] _LightProbeActivated ("Enable light probes", Int) = 1
     }
@@ -41,6 +41,8 @@
             #pragma target 5.0
             #pragma exclude_renderers d3d11_9x
             #pragma exclude_renderers d3d9
+            #pragma shader_feature _LIGHTPROBEACTIVATED_ON _LIGHTPROBEACTIVATED_OFF
+            #pragma shader_feature _QUALITY_LOW _QUALITY_MEDIUM _QUALITY_HIGH
 
             float _Density;
             float _SunMult;

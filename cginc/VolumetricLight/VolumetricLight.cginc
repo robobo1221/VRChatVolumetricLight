@@ -112,17 +112,20 @@ float3 getShadowRayPosition(ShadowRaymarchCascades cascades, float viewZ) {
            cascades.cascade3.rayPosition * weights.w;
 }
 
-MultiScatterVariables generadeMultiScatterValues(float NoV) {
+MultiScatterVariables generateMultiScatterValues(float NoV) {
     MultiScatterVariables values;
+    float phases[multiScatterTerms]; // Local array for computation
     float g1 = _ForwardG;
     float g2 = _BackwardG;
-    
+
     for (int i = 0; i < multiScatterTerms; ++i) {
-        values.phases[i] = dualLobePhase(NoV, g1, g2);
+        phases[i] = dualLobePhase(NoV, g1, g2);
 
         g1 = g1 * multiScatterCoeffC;
         g2 = g2 * multiScatterCoeffC;
     }
+
+    values.phases = phases;
 
     return values;
 }
@@ -175,7 +178,7 @@ float3 calculateLights(float3 worldPos, LocalLightVariables localLights, float3 
     totalLight *= max_atten;
 
     return totalLight;
-}
+} 
 
 void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 transmittance, float3 scatteringIntegral, float3 extinctionCoeff, float3 rayPosition, LocalLightVariables localLights, float sunPhase, float shadowMask, float depthToSun, float depthToSky, float currA, float currB) {
     float3 sunShadowing = exp(-depthToSun * extinctionCoeff * currB);
@@ -207,42 +210,32 @@ void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skySca
         currB *= multiScatterCoeffB;
     }
 
-    if (_LightProbeActivated > 0) {
-        float3 probeUv = (rayPosition - _LightProbeRoot) / _LightProbeBounds;
-        float padding = 0.2;
-        float3 d = abs(probeUv * 2.0 - 1.0);
-        float mask = saturate(1.0 - max(max(max(d.x, d.y), d.z) - 1.0, 0.0) / padding);
+    #ifdef _LIGHTPROBEACTIVATED_ON
+    float3 probeUv = (rayPosition - _LightProbeRoot) / _LightProbeBounds;
+    float padding = 0.2;
+    float3 d = abs(probeUv * 2.0 - 1.0);
+    float mask = saturate(1.0 - max(max(max(d.x, d.y), d.z) - 1.0, 0.0) / padding);
 
-        float3 lightProbeData = tex3D(_LightProbeTexture, probeUv).rgb;
+    float3 lightProbeData = tex3D(_LightProbeTexture, probeUv).rgb;
 
-        localScattering += scatteringIntegral * scatteringCoefficient * transmittance * lightProbeData * mask * mask * 4.0 * (1.0 / (1.0 - multiScatterCoeffA));
-    }
-}
-
-int getVlSteps() {
-    int VL_STEPS = 20;
-
-    switch(_Quality) {
-    case 0:
-        VL_STEPS = 8;
-        break;
-    case 1:
-        VL_STEPS = 20;
-        break;
-    case 2:
-        VL_STEPS = 40;
-        break;
-    }
-
-    return VL_STEPS;
+    localScattering += scatteringIntegral * scatteringCoefficient * transmittance * lightProbeData * mask * mask * 4.0 * (1.0 / (1.0 - multiScatterCoeffA));
+    #endif
 }
 
 void calculateVolumetricLight(inout float4 volumetricLight, float3 startPosition, float3 endPosition, float3 worldVector, float3 lightDirection, float dither, float linCorrect) {
     float3 extinctionCoeff = extinctionCoefficient;
 
-    int VL_STEPS = getVlSteps();
+    #ifdef _QUALITY_LOW
+    const int VL_STEPS = 8;
+    #elif _QUALITY_MEDIUM
+    const int VL_STEPS = 20;
+    #elif _QUALITY_HIGH
+    const int VL_STEPS = 40;
+    #else 
+    const int VL_STEPS = 8;
+    #endif
 
-    float rSteps = 1.0 / float(VL_STEPS);
+    const float rSteps = 1.0 / float(VL_STEPS);
 
     float3 increment = (endPosition - startPosition) * rSteps;
     float3 rayPosition = startPosition + increment * dither;
@@ -259,7 +252,7 @@ void calculateVolumetricLight(inout float4 volumetricLight, float3 startPosition
     float phaseSky = 0.25 / PI;
     
     ShadowRaymarchCascades cascades = generateRaymarchCascadeValues(startPosition, endPosition, rSteps, dither);
-    MultiScatterVariables multiScatter = generadeMultiScatterValues(NoV);
+    MultiScatterVariables multiScatter = generateMultiScatterValues(NoV);
     LocalLightVariables localLights = generateLocalLightVariables();
 
     for (int i = 0; i < VL_STEPS; ++i) {
