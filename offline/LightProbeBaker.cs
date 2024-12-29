@@ -72,6 +72,13 @@ public class LightProbeBaker : MonoBehaviour {
         lightProbeTexture.filterMode = FilterMode.Trilinear;
         lightProbeTexture.wrapMode = TextureWrapMode.Clamp;
 
+        Vector3[] directions = new Vector3[sampleDirections];
+
+        // Generate random directions
+        for (int i = 0; i < sampleDirections; i++) {
+            directions[i] = UnityEngine.Random.onUnitSphere;
+        }
+
         // Iterate through all voxels in the 3D texture
         for (int x = 0; x < textureSize; x++) {
             for (int y = 0; y < textureSize; y++) {
@@ -87,14 +94,7 @@ public class LightProbeBaker : MonoBehaviour {
                     LightProbes.GetInterpolatedProbe(samplePosition, null, out probe);
 
                     // Convert the spherical harmonics data to HDR color
-
-                    Vector3[] directions = new Vector3[sampleDirections];
                     Color[] results = new Color[sampleDirections];
-
-                    // Generate random directions
-                    for (int i = 0; i < sampleDirections; i++) {
-                        directions[i] = UnityEngine.Random.onUnitSphere;
-                    }
 
                     // Evaluate colors for each direction
                     probe.Evaluate(directions, results);

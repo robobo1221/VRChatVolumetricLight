@@ -5,6 +5,7 @@
         [HideInInspector]_LightProbeTexture ("Light Probe Texture", 3D) = "" {}
         [HideInInspector]_LightProbeBounds ("Light Probe Bounds", Vector) = (0, 0, 0, 0)
         [HideInInspector]_LightProbeRoot ("Light Probe Root", Vector) = (0, 0, 0, 0)
+        [HideInInspector] Instancing ("Instancing", Float) = 1
 
         [KeywordEnum(Low, Medium, High)] _Quality ("Quality", Int) = 1   // 0 = low, 1 = medium, 2 = high
         _Color ("Fog Color", Color) = (1.0, 1.0, 1.0, 1.0)
@@ -41,8 +42,8 @@
             #pragma target 5.0
             #pragma exclude_renderers d3d11_9x
             #pragma exclude_renderers d3d9
-            #pragma shader_feature _LIGHTPROBEACTIVATED_ON _LIGHTPROBEACTIVATED_OFF
-            #pragma shader_feature _QUALITY_LOW _QUALITY_MEDIUM _QUALITY_HIGH
+            #pragma multi_compile_local __ _LIGHTPROBEACTIVATED_ON
+            #pragma multi_compile_local _QUALITY_LOW _QUALITY_MEDIUM _QUALITY_HIGH
 
             float _Density;
             float _SunMult;

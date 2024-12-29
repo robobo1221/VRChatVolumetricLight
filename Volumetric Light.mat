@@ -12,7 +12,7 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _LIGHTPROBEACTIVATED_OFF
+  - _LIGHTPROBEACTIVATED_ON
   - _QUALITY_MEDIUM
   m_InvalidKeywords: []
   m_LightmapFlags: 4
@@ -21,7 +21,7 @@ Material:
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
-  m_LockedProperties: 
+  m_LockedProperties: _GMix
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -39,13 +39,14 @@ Material:
         m_Offset: {x: 0, y: 0}
     m_Ints: []
     m_Floats:
+    - Instancing: 0
     - _BackwardG: 0.5
     - _Density: 0.1
     - _ForwardG: 0.8
     - _GMix: 0.5
     - _HeightFalloff: 0.1
     - _HeightOffset: 0
-    - _LightProbeActivated: 0
+    - _LightProbeActivated: 1
     - _LocalLightFadeDist: 24
     - _MinObjectWidth: 24
     - _Quality: 1
@@ -56,6 +57,6 @@ Material:
     - _zbounds: 13.06403
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _LightProbeBounds: {r: 20.231758, g: 6.5, b: 38.670357, a: 0}
-    - _LightProbeRoot: {r: -7.362395, g: 0, b: -27.382881, a: 0}
+    - _LightProbeBounds: {r: 21.907915, g: 6.5, b: 38.670357, a: 0}
+    - _LightProbeRoot: {r: -9.038551, g: 0, b: -27.382881, a: 0}
   m_BuildTextureStacks: []

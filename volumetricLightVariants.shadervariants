@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!200 &20000000
+ShaderVariantCollection:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_Name: volumetricLightVariants
+  m_Shaders:
+  - first: {fileID: 4800000, guid: 04040bdc33e09bd43af5c78eb559ccd5, type: 3}
+    second:
+      variants:
+      - keywords: _LIGHTPROBEACTIVATED_ON _QUALITY_HIGH
+        passType: 1
+      - keywords: _LIGHTPROBEACTIVATED_ON _QUALITY_LOW
+        passType: 1
+      - keywords: _LIGHTPROBEACTIVATED_ON _QUALITY_MEDIUM
+        passType: 1
+      - keywords: _QUALITY_HIGH
+        passType: 1
+      - keywords: _QUALITY_LOW
+        passType: 1
+      - keywords: _QUALITY_MEDIUM
+        passType: 1
