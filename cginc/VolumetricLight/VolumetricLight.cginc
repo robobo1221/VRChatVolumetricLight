@@ -177,7 +177,7 @@ float3 calculateLights(float3 worldPos, LocalLightVariables localLights, float3 
 
     totalLight *= max_atten;
 
-    return totalLight;
+    return totalLight * 2.0;
 } 
 
 void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 transmittance, float3 scatteringIntegral, float3 extinctionCoeff, float3 rayPosition, LocalLightVariables localLights, float sunPhase, float shadowMask, float depthToSun, float depthToSky, float currA, float currB) {
