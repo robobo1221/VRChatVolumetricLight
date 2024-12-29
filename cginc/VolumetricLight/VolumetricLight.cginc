@@ -274,7 +274,7 @@ void calculateVolumetricLight(inout float4 volumetricLight, float3 startPosition
 
     float3 sunLighting = sunScattering * _LightColor0.rgb * 2.0 * _SunMult;
     float3 skyLighting = skyScattering * phaseSky * unity_IndirectSpecColor.rgb;
-    float3 localLighting = localScattering * 2.0 * phaseSky;
+    float3 localLighting = localScattering * phaseSky;
 
     volumetricLight.xyz = (localLighting + sunLighting + skyLighting) * _Color * PI;
     volumetricLight.a = opticalDepth;

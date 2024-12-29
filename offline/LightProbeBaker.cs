@@ -103,12 +103,13 @@ public class LightProbeBaker : MonoBehaviour {
                     Color color = Color.black;
                     float totalWeight = 0.0f;
                     for (int i = 0; i < sampleDirections; i++) {
-                        float weight = (float)results[i].r + (float)results[i].g + (float)results[i].b; // Weight so that lighter features get more exposed.
+                        // Weight so that lighter features get more exposed.
+                        float weight = results[i].grayscale;
                         weight = weight * weight;
                         color += results[i] * weight;
                         totalWeight += weight;
                     }
-                    color = color / (sampleDirections + totalWeight);
+                    color = color / totalWeight;
 
                     // Assign the color to the voxel in the 3D texture
                     lightProbeTexture.SetPixel(x, y, z, color);
