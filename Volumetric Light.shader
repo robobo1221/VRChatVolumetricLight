@@ -86,16 +86,33 @@
 
             struct v2f {
                 float4 texcoord : TEXCOORD0;
-                float3 worldDirection : TEXCOORD1;
                 float4 vertex : SV_POSITION;
-            }; 
+            };
+
+            float3 ClipToWorldPos(float4 clipPos) {
+            #ifdef UNITY_REVERSED_Z
+                // unity_CameraInvProjection always in OpenGL matrix form
+                // that doesn't match the current view matrix used to calculate the clip space
+
+                // transform clip space into normalized device coordinates
+                float3 ndc = clipPos.xyz / clipPos.w;
+
+                // convert ndc's depth from 1.0 near to 0.0 far to OpenGL style -1.0 near to 1.0 far 
+                ndc = float3(ndc.x, ndc.y * _ProjectionParams.x, (1.0 - ndc.z) * 2.0 - 1.0);
+
+                // transform back into clip space and apply inverse projection matrix
+                float3 viewPos =  mul(unity_CameraInvProjection, float4(ndc * clipPos.w, clipPos.w));
+            #else
+                // using OpenGL, unity_CameraInvProjection matches view matrix
+                float3 viewPos = mul(unity_CameraInvProjection, clipPos);
+            #endif
+
+                // transform from view to world space
+                return mul(unity_MatrixInvV, float4(viewPos, 1.0)).xyz;
+            }
 
             v2f vert (appdata_base v) {
                 v2f o;
-
-                float3 cameraPos = _VRChatMirrorMode > 0 ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
-
-                o.worldDirection = mul(unity_ObjectToWorld, v.vertex).xyz - cameraPos;
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.texcoord = ComputeGrabScreenPos(o.vertex);
 
@@ -119,18 +136,23 @@
 
             fragOutput frag (v2f i) {
                 if (_VRChatMirrorMode > 0) discard;
-                fragOutput o;
-
+                
                 float2 texcoord = i.texcoord.xy / i.texcoord.w;
                 float2 fragCoord = texcoord * _BackgroundTexture_TexelSize.zw;
+                float2 clipPos = (texcoord.xy * 4.0 - 1.0) * float2(1.0, -1.0);
 
-                float3 worldVector = normalize(i.worldDirection);
+                if (texcoord.x > 0.5 || texcoord.y > 0.5) discard;
+
+                fragOutput o;
+
+                float3 cameraPos = _VRChatMirrorMode > 0 ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
+                float3 worldDirection = ClipToWorldPos(float4(clipPos, 1.0, 1.0)) - cameraPos;
+
+                float3 worldVector = normalize(worldDirection);
                 float3 forward = normalize(mul((float3x3)unity_CameraToWorld, float3(0,0,1)));
                 float linCorrect = 1.0 / dot(worldVector, forward);
 
-                float3 cameraPos = _VRChatMirrorMode > 0 ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
-
-                float depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord));
+                float depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord * 2.0));
 
                 float eyeDepth = LinearEyeDepth(depth) * linCorrect;
 

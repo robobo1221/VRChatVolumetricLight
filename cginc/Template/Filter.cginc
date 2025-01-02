@@ -73,14 +73,14 @@ fragOutput frag (v2f i) {
 
     // Make sure we don't include the background when passing it throught to the vertical filter.
     #if FILTER_ITTERATION == 0
-        o.color = filterVolumetricLight(VL_TEX, texcoord);
+        o.color = filterVolumetricLight(VL_TEX, texcoord * 0.5);
     #else
         float4 backgroundColor = tex2D(_BackgroundTexture, texcoord);
         float4 VolumetricLight = filterVolumetricLight(VL_TEX, texcoord);
 
         float3 transmittance = exp(-VolumetricLight.a * extinctionCoefficient);
 
-        backgroundColor.rgb = backgroundColor.rgb * transmittance + VolumetricLight.rgb;
+        backgroundColor.rgb = VolumetricLight.rgb;
         
         o.color = backgroundColor;
     #endif
