@@ -12,9 +12,9 @@ Material:
   m_Parent: {fileID: 0}
   m_ModifiedSerializedProperties: 0
   m_ValidKeywords:
-  - _LIGHTPROBEACTIVATED_ON
   - _QUALITY_MEDIUM
-  m_InvalidKeywords: []
+  m_InvalidKeywords:
+  - _LIGHTPROBEACTIVATED_OFF
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 0
   m_DoubleSidedGI: 0
@@ -46,7 +46,7 @@ Material:
     - _GMix: 0.5
     - _HeightFalloff: 0.1
     - _HeightOffset: 0
-    - _LightProbeActivated: 1
+    - _LightProbeActivated: 0
     - _LocalLightFadeDist: 24
     - _MinObjectWidth: 24
     - _Quality: 1
