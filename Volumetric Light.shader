@@ -5,7 +5,7 @@
         [HideInInspector]_LightProbeTexture ("Light Probe Texture", 3D) = "" {}
         [HideInInspector]_LightProbeBounds ("Light Probe Bounds", Vector) = (0, 0, 0, 0)
         [HideInInspector]_LightProbeRoot ("Light Probe Root", Vector) = (0, 0, 0, 0)
-        [HideInInspector] Instancing ("Instancing", Float) = 1
+        _Scale ("Scale", Float) = 2.0
 
         [KeywordEnum(Low, Medium, High)] _Quality ("Quality", Int) = 1   // 0 = low, 1 = medium, 2 = high
         _Color ("Fog Color", Color) = (1.0, 1.0, 1.0, 1.0)
@@ -53,6 +53,7 @@
             float _BackwardG;
             float _GMix;
             float _LocalLightFadeDist;
+            float _Scale;
             float4 _Color;
 
             int _Quality;
@@ -139,9 +140,9 @@
                 
                 float2 texcoord = i.texcoord.xy / i.texcoord.w;
                 float2 fragCoord = texcoord * _BackgroundTexture_TexelSize.zw;
-                float2 clipPos = (texcoord.xy * 4.0 - 1.0) * float2(1.0, -1.0);
+                float2 clipPos = (texcoord.xy * _Scale * 2.0 - 1.0) * float2(1.0, -1.0);
 
-                if (texcoord.x > 0.5 || texcoord.y > 0.5) discard;
+                if (texcoord.x > 1.1 / _Scale || texcoord.y > 1.1 / _Scale) discard;
 
                 fragOutput o;
 
@@ -152,7 +153,7 @@
                 float3 forward = normalize(mul((float3x3)unity_CameraToWorld, float3(0,0,1)));
                 float linCorrect = 1.0 / dot(worldVector, forward);
 
-                float depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord * 2.0));
+                float depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord * _Scale));
 
                 float eyeDepth = LinearEyeDepth(depth) * linCorrect;
 
@@ -176,6 +177,56 @@
         
         GrabPass {
             "_VolumeLightTexture"
+        }
+
+        pass {
+            name "Downsample Information"
+            CGPROGRAM
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma target 5.0
+
+            #include "UnityCG.cginc"
+            #include "cginc/Syntax.cginc"
+            #include "cginc/Utility.cginc"
+
+            sampler2D _CameraDepthTexture;
+            float _Scale;
+
+            struct v2f {
+                float4 texcoord : TEXCOORD0;
+                float4 vertex : SV_POSITION;
+            };
+            
+            v2f vert (appdata_base v) {
+                v2f o;
+            
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.texcoord = ComputeGrabScreenPos(o.vertex);
+            
+                return o;
+            }
+            
+            struct fragOutput {
+                float4 color : COLOR;
+            };
+
+            fragOutput frag (v2f i) {
+                fragOutput o;
+
+                float2 texcoord = i.texcoord.xy / i.texcoord.w;
+                float depth = sampleLinearDepth(_CameraDepthTexture, texcoord * _Scale);
+
+                o.color = float4(depth, 0.0, 0.0, 0.0);
+
+                return o;
+            }
+
+            ENDCG
+        }
+
+        GrabPass {
+            "_VolumeLightTextureDepth"
         }
 
         pass {
@@ -213,6 +264,27 @@
 
             ENDCG
         }
-        
+
+        GrabPass {
+            "_ScaledVolumeLightTexture"
+        }
+
+        pass {
+            name "Volumetric Light Upscale filter"
+            CGPROGRAM
+
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma target 5.0
+
+            #define FILTER_ITTERATION 2   // 0 = x, 1 = y
+            #define VL_TEX _ScaledVolumeLightTexture
+            #define VL_TEX_SIZE _ScaledVolumeLightTexture_TexelSize
+            #define DEPTH_TEX _VolumeLightTextureDepth
+
+            #include "cginc/Template/Filter.cginc"
+
+            ENDCG
+        }
     }
 }
