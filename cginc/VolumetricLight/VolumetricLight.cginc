@@ -23,7 +23,7 @@ float calculateCloudFBM(float3 position, float3 wind) {
 float calculateDensity(float3 rayPosition) {
     float height = rayPosition.y;
 
-    float3 wind = float3(_Time.y, 0.0, _Time.y) * 0.5;
+    //float3 wind = float3(_Time.y, 0.0, _Time.y) * 0.5;
 
     //float noise = calculateCloudFBM(rayPosition * 0.5, wind);
     //noise = noise * noise * (3.0 - 2.0 * noise);
@@ -145,7 +145,7 @@ LocalLightVariables generateLocalLightVariables() {
     return values;
 }
 
-float3 calculateCombinedLights(float3 worldPos, float4 lightPos, float3 lightCol, float3 spotDir, float4 qAtten, float3 extinctionCoeff, float currb) {
+float3 calculateCombinedLights(float3 worldPos, float4 lightPos, float3 lightCol, float3 spotDir, float4 qAtten, float3 extinctionCoeff) {
     float3 relPos = worldPos - lightPos.xyz;
     float distSq = dot(relPos, relPos);
 
@@ -155,10 +155,10 @@ float3 calculateCombinedLights(float3 worldPos, float4 lightPos, float3 lightCol
 
     float spotAtten = lerp(saturate((spotEffect - qAtten.x) * qAtten.y), 1.0, step(qAtten.x, 0));
 
-    return spotAtten * atten * lightCol * exp(-sqrt(distSq) * extinctionCoeff * _Density * currb) * step(1, lightPos.a);
+    return spotAtten * atten * lightCol * step(1, lightPos.a);
 }
 
-float3 calculateLights(float3 worldPos, LocalLightVariables localLights, float3 extinctionCoeff, float currb) {
+float3 calculateLights(float3 worldPos, LocalLightVariables localLights, float3 extinctionCoeff) {
     float3 totalLight = float3(0.0, 0.0, 0.0);
     float max_atten = saturate(_LocalLightFadeDist - length(worldPos - _WorldSpaceCameraPos));
 
@@ -169,7 +169,7 @@ float3 calculateLights(float3 worldPos, LocalLightVariables localLights, float3 
 
         float3 lightContrib = calculateCombinedLights(
             worldPos, lightPos, lightColor,
-            localLights.spotDirections[i].xyz, lightAtten, extinctionCoeff, currb
+            localLights.spotDirections[i].xyz, lightAtten, extinctionCoeff
         );
 
         totalLight += lightContrib * step(1, lightPos.a);
@@ -177,39 +177,30 @@ float3 calculateLights(float3 worldPos, LocalLightVariables localLights, float3 
 
     totalLight *= max_atten;
 
-    return totalLight * 2.0;
+    return totalLight;
 } 
 
-void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 transmittance, float3 scatteringIntegral, float3 extinctionCoeff, float3 rayPosition, LocalLightVariables localLights, float sunPhase, float shadowMask, float depthToSun, float depthToSky, float currA, float currB) {
-    float3 sunShadowing = exp(-depthToSun * extinctionCoeff * currB);
-    float3 skyShadowing = exp(-depthToSky * extinctionCoeff * currB);
+void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 transmittance, float3 scatteringIntegral, float3 extinctionCoeff, float3 rayPosition, LocalLightVariables localLights, float sunPhase, float shadowMask, float currA) {
+    sunScattering += scatteringIntegral * scatteringCoefficient * currA * sunPhase * shadowMask * transmittance;
     
-    if (_LightColor0.a > 0.0) {
-        sunScattering += scatteringIntegral * scatteringCoefficient * currA * sunPhase * sunShadowing * shadowMask * transmittance;
-    }
-    
-    skyScattering += scatteringIntegral * scatteringCoefficient * currA * skyShadowing * transmittance;
-    localScattering += scatteringIntegral * scatteringCoefficient * currA * calculateLights(rayPosition, localLights, extinctionCoeff, currB) * transmittance;
+    skyScattering += scatteringIntegral * scatteringCoefficient * currA * transmittance;
+    localScattering += scatteringIntegral * scatteringCoefficient * currA * calculateLights(rayPosition, localLights, extinctionCoeff) * transmittance;
 }
 
 void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skyScattering, inout float3 localScattering, float3 rayPosition, LocalLightVariables localLights, float3 shadowRayPosition, float3 lightDirection, float3 transmittance, float3 stepTransmittance, float3 extinctionCoeff, float density, MultiScatterVariables multiScatter) {
     float shadowMask = getShadow(shadowRayPosition);
-    float depthToSun = calculateDepthAlongRay(rayPosition, lightDirection);
-    float depthToSky = density;
 
     float3 scatteringIntegral = (1.0 - stepTransmittance) / extinctionCoeff;
 
     float currA = 1.0;
-    float currB = 1.0;
 
     float3 accumulatedSkyScattering = float3(0.0, 0.0, 0.0);
 
     for (int i = 0; i < multiScatterTerms; ++i) {
         float sunPhase = multiScatter.phases[i];
-        calculateVolumetricLighting(sunScattering, accumulatedSkyScattering, localScattering, transmittance, scatteringIntegral, extinctionCoeff, rayPosition, localLights, sunPhase, shadowMask, depthToSun, depthToSky, currA, currB);
+        calculateVolumetricLighting(sunScattering, accumulatedSkyScattering, localScattering, transmittance, scatteringIntegral, extinctionCoeff, rayPosition, localLights, sunPhase, shadowMask, currA);
         
         currA *= multiScatterCoeffA;
-        currB *= multiScatterCoeffB;
     }
 
     #ifdef _LIGHTPROBEACTIVATED_ON
@@ -221,7 +212,7 @@ void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skySca
 
     float3 lightProbeData = tex3D(_LightProbeTexture, probeUv).rgb;
 
-    localScattering += scatteringIntegral * scatteringCoefficient * transmittance * lightProbeData * mask * 2.0 * (1.0 / (1.0 - multiScatterCoeffA));
+    localScattering += scatteringIntegral * scatteringCoefficient * transmittance * lightProbeData * mask * (1.0 / (1.0 - multiScatterCoeffA));
     accumulatedSkyScattering *= 1.0 - mask;
     #endif
 
@@ -278,9 +269,14 @@ void calculateVolumetricLight(inout float4 volumetricLight, float3 startPosition
         updateRaymarchCascadePosition(cascades);
     }
 
-    float3 sunLighting = sunScattering * _LightColor0.rgb * 2.0 * _SunMult;
+    float3 sunLighting = float3(0.0, 0.0, 0.0);
+    
+    if (_LightColor0.a > 0.0) {
+        sunLighting = sunScattering * _LightColor0.rgb * 2.0 * _SunMult;
+    }
+
     float3 skyLighting = skyScattering * phaseSky * unity_IndirectSpecColor.rgb;
-    float3 localLighting = localScattering * phaseSky;
+    float3 localLighting = localScattering * phaseSky * 2.0;
 
     volumetricLight.xyz = (localLighting + sunLighting + skyLighting) * _Color * PI;
     volumetricLight.a = opticalDepth;
