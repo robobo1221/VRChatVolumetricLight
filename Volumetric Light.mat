@@ -21,7 +21,7 @@ Material:
   m_CustomRenderQueue: -1
   stringTagMap: {}
   disabledShaderPasses: []
-  m_LockedProperties: _GMix
+  m_LockedProperties: 
   m_SavedProperties:
     serializedVersion: 3
     m_TexEnvs:
@@ -48,6 +48,7 @@ Material:
     - _HeightOffset: 0
     - _LightProbeActivated: 0
     - _LocalLightFadeDist: 24
+    - _MaxRayLength: 50
     - _MinObjectWidth: 24
     - _Quality: 1
     - _SunMult: 2
@@ -57,6 +58,6 @@ Material:
     - _zbounds: 13.06403
     m_Colors:
     - _Color: {r: 1, g: 1, b: 1, a: 1}
-    - _LightProbeBounds: {r: 21.907915, g: 6.5, b: 38.670357, a: 0}
-    - _LightProbeRoot: {r: -9.038551, g: 0, b: -27.382881, a: 0}
+    - _LightProbeBounds: {r: 55.222755, g: 7.497758, b: 51.48252, a: 0}
+    - _LightProbeRoot: {r: -26.16775, g: 0, b: -36.92523, a: 0}
   m_BuildTextureStacks: []

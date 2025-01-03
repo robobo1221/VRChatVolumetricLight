@@ -7,6 +7,7 @@ sampler2D _BackgroundTexture;
 sampler2D _CameraDepthTexture;
 
 float4 VL_TEX_SIZE;
+float _MaxRayLength;
 int _Quality;
 
 float _VRChatMirrorMode;

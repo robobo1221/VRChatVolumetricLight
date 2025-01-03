@@ -8,6 +8,7 @@ public class LightProbeBaker : MonoBehaviour {
     public Material volumetricMaterial;
     public int sampleDirections = 32;
     public int textureSize = 64;
+    public float texturePadding = 0.1f;
     private Vector3 lightProbeRoot; // Store the root position of the light probe data
 
     [MenuItem("Tools/Bake Light Probes")]
@@ -39,6 +40,9 @@ public class LightProbeBaker : MonoBehaviour {
                 combinedBounds.Encapsulate(worldPosition);
             }
         }
+
+        // Add padding to the bounds
+        combinedBounds.Expand(texturePadding * combinedBounds.size);
 
         Debug.Log("Combined Light Probe Bounds: " + combinedBounds.ToString());
 
@@ -104,7 +108,7 @@ public class LightProbeBaker : MonoBehaviour {
                     float totalWeight = 0.0f;
                     for (int i = 0; i < sampleDirections; i++) {
                         // Weight so that lighter features get more exposed.
-                        float weight = results[i].grayscale;
+                        float weight = 1.f;
                         weight = weight * weight;
                         color += results[i] * weight;
                         totalWeight += weight;

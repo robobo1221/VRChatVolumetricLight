@@ -202,9 +202,11 @@ void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skySca
     float currA = 1.0;
     float currB = 1.0;
 
+    float3 accumulatedSkyScattering = float3(0.0, 0.0, 0.0);
+
     for (int i = 0; i < multiScatterTerms; ++i) {
         float sunPhase = multiScatter.phases[i];
-        calculateVolumetricLighting(sunScattering, skyScattering, localScattering, transmittance, scatteringIntegral, extinctionCoeff, rayPosition, localLights, sunPhase, shadowMask, depthToSun, depthToSky, currA, currB);
+        calculateVolumetricLighting(sunScattering, accumulatedSkyScattering, localScattering, transmittance, scatteringIntegral, extinctionCoeff, rayPosition, localLights, sunPhase, shadowMask, depthToSun, depthToSky, currA, currB);
         
         currA *= multiScatterCoeffA;
         currB *= multiScatterCoeffB;
@@ -215,11 +217,15 @@ void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skySca
     float padding = 0.2;
     float3 d = abs(probeUv * 2.0 - 1.0);
     float mask = saturate(1.0 - max(max(max(d.x, d.y), d.z) - 1.0, 0.0) / padding);
+    mask = mask * mask;
 
     float3 lightProbeData = tex3D(_LightProbeTexture, probeUv).rgb;
 
-    localScattering += scatteringIntegral * scatteringCoefficient * transmittance * lightProbeData * mask * mask * 4.0 * (1.0 / (1.0 - multiScatterCoeffA));
+    localScattering += scatteringIntegral * scatteringCoefficient * transmittance * lightProbeData * mask * 2.0 * (1.0 / (1.0 - multiScatterCoeffA));
+    accumulatedSkyScattering *= 1.0 - mask;
     #endif
+
+    skyScattering += accumulatedSkyScattering;
 }
 
 void calculateVolumetricLight(inout float4 volumetricLight, float3 startPosition, float3 endPosition, float3 worldVector, float3 lightDirection, float dither, float linCorrect) {

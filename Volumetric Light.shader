@@ -17,7 +17,8 @@
 
         _ForwardG ("Forward G", Range(0.0, 0.99)) = 0.8
         _BackwardG ("Backward G", Range(0.0, 0.99)) = 0.5
-        _GMix ("G Mix", Range(0.0, 1.0)) = 0.5 
+        _GMix ("G Mix", Range(0.0, 1.0)) = 0.5
+        _MaxRayLength ("Max Ray Length", Range(1.0, 500.0)) = 50.0
 
         [KeywordEnum(Off, On)] _LightProbeActivated ("Enable light probes", Int) = 1
     }
@@ -53,6 +54,7 @@
             float _BackwardG;
             float _GMix;
             float _LocalLightFadeDist;
+            float _MaxRayLength;
             float4 _Color;
 
             int _Quality;
@@ -134,7 +136,7 @@
 
                 float eyeDepth = LinearEyeDepth(depth) * linCorrect;
 
-                eyeDepth = min(eyeDepth, 50.0);
+                eyeDepth = min(eyeDepth, _MaxRayLength);
                 float3 worldPosition = eyeDepth * worldVector + cameraPos;
             
                 float dither = bayer16(fragCoord);
