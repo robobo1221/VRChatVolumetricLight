@@ -108,7 +108,7 @@ public class LightProbeBaker : MonoBehaviour {
                     float totalWeight = 0.0f;
                     for (int i = 0; i < sampleDirections; i++) {
                         // Weight so that lighter features get more exposed.
-                        float weight = 1.f;
+                        float weight = 1.0f;
                         weight = weight * weight;
                         color += results[i] * weight;
                         totalWeight += weight;
