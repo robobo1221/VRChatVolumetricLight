@@ -205,7 +205,7 @@ void calculateVolumetricLighting(inout float3 sunScattering, inout float3 skySca
 
     #ifdef _LIGHTPROBEACTIVATED_ON
     float3 probeUv = (rayPosition - _LightProbeRoot) / _LightProbeBounds;
-    float padding = 0.2;
+    const float padding = 0.2;
     float3 d = abs(probeUv * 2.0 - 1.0);
     float mask = saturate(1.0 - max(max(max(d.x, d.y), d.z) - 1.0, 0.0) / padding);
     mask = mask * mask;
