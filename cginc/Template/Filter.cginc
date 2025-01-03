@@ -66,8 +66,6 @@ float4 filterVolumetricLight(sampler2D tex, float2 texcoord) {
 }
 
 fragOutput frag (v2f i) {
-    if (_VRChatMirrorMode > 0) discard;
-
     fragOutput o;
 
     float2 texcoord = i.texcoord.xy / i.texcoord.w;

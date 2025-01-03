@@ -87,19 +87,47 @@
             #include "cginc/VolumetricLight/VolumetricLight.cginc"
 
             struct v2f {
-                float4 texcoord : TEXCOORD0;
-                float3 worldDirection : TEXCOORD1;
                 float4 vertex : SV_POSITION;
-            }; 
+                UNITY_VERTEX_OUTPUT_STEREO
+            };
+
+            float4x4 CreateClipToViewMatrix() {
+                float4x4 flipZ = float4x4(1, 0, 0, 0,
+                                          0, 1, 0, 0,
+                                          0, 0, -1, 1,
+                                          0, 0, 0, 1);
+                float4x4 scaleZ = float4x4(1, 0, 0, 0,
+                                           0, 1, 0, 0,
+                                           0, 0, 2, -1,
+                                           0, 0, 0, 1);
+                float4x4 invP = unity_CameraInvProjection;
+                float4x4 flipY = float4x4(1, 0, 0, 0,
+                                          0, _ProjectionParams.x, 0, 0,
+                                          0, 0, 1, 0,
+                                          0, 0, 0, 1);
+
+                float4x4 result = mul(scaleZ, flipZ);
+                result = mul(invP, result);
+                result = mul(flipY, result);
+                result._24 *= _ProjectionParams.x;
+                result._42 *= -1;
+                return result;
+            }
+
+            float4 SVPositionToClipPos(float4 pos) {
+                float4 clipPos = float4(((pos.xy / _ScreenParams.xy) * 2 - 1) * int2(1, -1), pos.z, 1);
+                #ifdef UNITY_SINGLE_PASS_STEREO
+                    clipPos.x -= 2 * unity_StereoEyeIndex;
+                #endif
+                return clipPos;
+            }
 
             v2f vert (appdata_base v) {
                 v2f o;
-
-                float3 cameraPos = _VRChatMirrorMode > 0 ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
-
-                o.worldDirection = mul(unity_ObjectToWorld, v.vertex).xyz - cameraPos;
+                UNITY_SETUP_INSTANCE_ID(v);
+                UNITY_INITIALIZE_OUTPUT(v2f, o);
+                UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 o.vertex = UnityObjectToClipPos(v.vertex);
-                o.texcoord = ComputeGrabScreenPos(o.vertex);
 
                 return o;
             }
@@ -108,36 +136,33 @@
                 float4 color : COLOR;
             };
 
-            float cameraToMirror(float3 worldVector) {
-                float3 planeNormal = worldVector;
-                float zNear = _ProjectionParams.y;
-                float3 originToCamera = _WorldSpaceCameraPos;
-
-                float originToCameradistance = length(dot(originToCamera, planeNormal));
-                float originToPlaneDistance = zNear - originToCameradistance;
-
-                return originToPlaneDistance;
-            }
-
             fragOutput frag (v2f i) {
-                if (_VRChatMirrorMode > 0) discard;
+                UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
+
                 fragOutput o;
 
-                float2 texcoord = i.texcoord.xy / i.texcoord.w;
+                float4 clipPos = SVPositionToClipPos(i.vertex);
+
+                float4 uv = ComputeScreenPos(clipPos);
+
+                float2 texcoord = uv.xy / uv.w;
                 float2 fragCoord = texcoord * _BackgroundTexture_TexelSize.zw;
-
-                float3 worldVector = normalize(i.worldDirection);
-                float3 forward = normalize(mul((float3x3)unity_CameraToWorld, float3(0,0,1)));
-                float linCorrect = 1.0 / dot(worldVector, forward);
-
-                float3 cameraPos = _VRChatMirrorMode > 0 ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
 
                 float depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord));
 
-                float eyeDepth = LinearEyeDepth(depth) * linCorrect;
+                float4x4 invP = CreateClipToViewMatrix();
+                float4 viewPos = mul(invP, float4(clipPos.xy / clipPos.w, depth, 1));
+                viewPos = float4(viewPos.xyz / viewPos.w, 1);
 
-                eyeDepth = min(eyeDepth, _MaxRayLength);
-                float3 worldPosition = eyeDepth * worldVector + cameraPos;
+                float3 worldPos = mul(UNITY_MATRIX_I_V, viewPos).xyz;
+
+                float3 cameraPos = (_VRChatMirrorMode > 0) ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
+
+                float3 worldVector = normalize(worldPos - cameraPos);
+                float3 viewVector = normalize(viewPos.xyz);
+                float linCorrect = 1.0 / -viewVector.z;
+
+                float3 worldPosition = worldVector * min(length(viewPos), _MaxRayLength) + cameraPos;
             
                 float dither = bayer16(fragCoord);
                 float3 lightDirection = normalize(_WorldSpaceLightPos0.xyz);
