@@ -77,6 +77,7 @@
             UNITY_DECLARE_SHADOWMAP(_ShadowMapTexture);
 
             #include "UnityCG.cginc"
+            #include "UnityStandardUtils.cginc"
 
             #include "cginc/Syntax.cginc"
             #include "cginc/Utility.cginc"
@@ -88,6 +89,8 @@
             struct v2f {
                 float4 texcoord : TEXCOORD0;
                 float4 vertex : SV_POSITION;
+                UNITY_VERTEX_INPUT_INSTANCE_ID
+				UNITY_VERTEX_OUTPUT_STEREO
             };
 
             float3 ClipToWorldPos(float4 clipPos) {
@@ -114,6 +117,10 @@
 
             v2f vert (appdata_base v) {
                 v2f o;
+                UNITY_SETUP_INSTANCE_ID( v );
+				UNITY_INITIALIZE_OUTPUT( v2f, o );
+				UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO( o );
+				UNITY_TRANSFER_INSTANCE_ID( v, o );
                 o.vertex = UnityObjectToClipPos(v.vertex);
                 o.texcoord = ComputeGrabScreenPos(o.vertex);
 
@@ -140,9 +147,12 @@
                 
                 float2 texcoord = i.texcoord.xy / i.texcoord.w;
                 float2 fragCoord = texcoord * _BackgroundTexture_TexelSize.zw;
-                float2 clipPos = (texcoord.xy * _Scale * 2.0 - 1.0) * float2(1.0, -1.0);
+                
+                texcoord = TransformStereoScreenSpaceTex(texcoord, 1.0);
 
                 if (texcoord.x > 1.1 / _Scale || texcoord.y > 1.1 / _Scale) discard;
+
+                float2 clipPos = (texcoord.xy * _Scale * 2.0 - 1.0) * float2(1.0, -1.0);
 
                 fragOutput o;
 
@@ -230,6 +240,94 @@
         }
 
         pass {
+            name "Volumetric Light Upscale filter"
+            CGPROGRAM
+
+            #pragma vertex vert
+            #pragma fragment frag
+            #pragma target 5.0
+
+            #include "UnityCG.cginc"
+            #include "cginc/Syntax.cginc"
+            #include "cginc/Utility.cginc"
+
+            sampler2D _CameraDepthTexture;
+            sampler2D _VolumeLightTextureDepth;
+            sampler2D _VolumeLightTexture;
+            float4 _VolumeLightTexture_TexelSize;
+            float _Scale;
+
+            // upscale based on downscaled depth and actual depth bilaterally
+            float4 upscaleVolumetrics(float2 texcoord) {
+                const int blurSize = 2;
+
+                float2 rTexelSize = 1.0 / _VolumeLightTexture_TexelSize.zw;
+
+                float4 center = tex2D(_VolumeLightTexture, texcoord / _Scale);
+                float4 result = center;
+                float totalWeight = 1.0;
+
+                float centerDepth = sampleLinearDepth(_CameraDepthTexture, texcoord);
+
+                for (int i = -blurSize; i <= blurSize; i++) {
+                    for (int j = -blurSize; j <= blurSize; j++) {
+                        if (i == 0 && j == 0) {
+                            continue;
+                        }
+
+                        float2 offset = float2(i, j);
+                        float2 newCoord = texcoord + offset * rTexelSize;
+
+                        float offsetDepth = tex2D(_VolumeLightTextureDepth, newCoord / _Scale).r;
+                        float depthWeight = exp(-abs(centerDepth - offsetDepth) * 16.0 / centerDepth) + 1e-4;
+
+                        float4 tap = tex2D(_VolumeLightTexture, newCoord / _Scale);
+
+                        float volumetricWeight = depthWeight / (distance(center.rgb, tap.rgb) + 1e-16);
+
+                        result += tex2D(_VolumeLightTexture, newCoord / _Scale) * depthWeight * volumetricWeight;
+                        totalWeight += depthWeight * volumetricWeight;
+                    }
+                }
+
+                return result / totalWeight;
+            }
+
+            struct v2f {
+                float4 texcoord : TEXCOORD0;
+                float4 vertex : SV_POSITION;
+            };
+
+            v2f vert (appdata_base v) {
+                v2f o;
+                o.vertex = UnityObjectToClipPos(v.vertex);
+                o.texcoord = ComputeGrabScreenPos(o.vertex);
+
+                return o;
+            }
+
+            struct fragOutput {
+                float4 color : COLOR;
+            };
+
+            fragOutput frag (v2f i) {
+                fragOutput o;
+
+                float2 texcoord = i.texcoord.xy / i.texcoord.w;
+
+                o.color = upscaleVolumetrics(texcoord);
+
+                return o;
+            }
+
+            ENDCG
+        }
+
+        GrabPass {
+            "_UpscaledVolumeLightTexture"
+        }
+
+        pass {
             name "Volumetric Light X filter"
             CGPROGRAM
             #pragma vertex vert
@@ -237,8 +335,8 @@
             #pragma target 5.0
 
             #define FILTER_ITTERATION 0   // 0 = x, 1 = y
-            #define VL_TEX _VolumeLightTexture
-            #define VL_TEX_SIZE _VolumeLightTexture_TexelSize
+            #define VL_TEX _UpscaledVolumeLightTexture
+            #define VL_TEX_SIZE _UpscaledVolumeLightTexture_TexelSize
 
             #include "cginc/Template/Filter.cginc"
 
@@ -259,28 +357,6 @@
             #define FILTER_ITTERATION 1   // 0 = x, 1 = y
             #define VL_TEX _VolumeLightTextureX
             #define VL_TEX_SIZE _VolumeLightTextureX_TexelSize
-
-            #include "cginc/Template/Filter.cginc"
-
-            ENDCG
-        }
-
-        GrabPass {
-            "_ScaledVolumeLightTexture"
-        }
-
-        pass {
-            name "Volumetric Light Upscale filter"
-            CGPROGRAM
-
-            #pragma vertex vert
-            #pragma fragment frag
-            #pragma target 5.0
-
-            #define FILTER_ITTERATION 2   // 0 = x, 1 = y
-            #define VL_TEX _ScaledVolumeLightTexture
-            #define VL_TEX_SIZE _ScaledVolumeLightTexture_TexelSize
-            #define DEPTH_TEX _VolumeLightTextureDepth
 
             #include "cginc/Template/Filter.cginc"
 
