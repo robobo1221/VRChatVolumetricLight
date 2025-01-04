@@ -6,7 +6,6 @@ public class LightProbeBaker : MonoBehaviour {
 
     #if UNITY_EDITOR
     public Material volumetricMaterial;
-    public int sampleDirections = 32;
     public int textureSize = 64;
     public float texturePadding = 0.1f;
     private Vector3 lightProbeRoot; // Store the root position of the light probe data
@@ -76,13 +75,6 @@ public class LightProbeBaker : MonoBehaviour {
         lightProbeTexture.filterMode = FilterMode.Trilinear;
         lightProbeTexture.wrapMode = TextureWrapMode.Clamp;
 
-        Vector3[] directions = new Vector3[sampleDirections];
-
-        // Generate random directions
-        for (int i = 0; i < sampleDirections; i++) {
-            directions[i] = UnityEngine.Random.onUnitSphere;
-        }
-
         // Iterate through all voxels in the 3D texture
         for (int x = 0; x < textureSize; x++) {
             for (int y = 0; y < textureSize; y++) {
@@ -97,23 +89,8 @@ public class LightProbeBaker : MonoBehaviour {
                     SphericalHarmonicsL2 probe;
                     LightProbes.GetInterpolatedProbe(samplePosition, null, out probe);
 
-                    // Convert the spherical harmonics data to HDR color
-                    Color[] results = new Color[sampleDirections];
-
-                    // Evaluate colors for each direction
-                    probe.Evaluate(directions, results);
-
                     // Calculate the mean color
-                    Color color = Color.black;
-                    float totalWeight = 0.0f;
-                    for (int i = 0; i < sampleDirections; i++) {
-                        // Weight so that lighter features get more exposed.
-                        float weight = 1.0f;
-                        weight = weight * weight;
-                        color += results[i] * weight;
-                        totalWeight += weight;
-                    }
-                    color = color / totalWeight;
+                    Color color = new Color(probe[0, 0], probe[1, 0], probe[2, 0]);
 
                     // Assign the color to the voxel in the 3D texture
                     lightProbeTexture.SetPixel(x, y, z, color);
