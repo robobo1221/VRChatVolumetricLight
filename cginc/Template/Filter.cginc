@@ -19,8 +19,8 @@ float _VRChatMirrorMode;
 #include "cginc/VolumetricLight/VolumetricLightConstants.cginc"
 
 struct v2f {
-    float4 texcoord : TEXCOORD0;
-    float4 vertex : SV_POSITION;
+    half4 texcoord : TEXCOORD0;
+    half4 vertex : SV_POSITION;
 };
 
 v2f vert (appdata_base v) {
@@ -33,30 +33,30 @@ v2f vert (appdata_base v) {
 }
 
 struct fragOutput {
-    float4 color : COLOR;
+    half4 color : COLOR;
 };
 
-float4 filterVolumetricLight(sampler2D tex, float2 texcoord) {
+half4 filterVolumetricLight(sampler2D tex, half2 texcoord) {
     int blurSize = 2;
 
-    float2 rTexelSize = 1.0 / VL_TEX_SIZE.zw;
+    half2 rTexelSize = 1.0 / VL_TEX_SIZE.zw;
 
-    float4 result = float4(0.0, 0.0, 0.0, 0.0);
-    float totalWeight = 0.0;
+    half4 result = float4(0.0, 0.0, 0.0, 0.0);
+    fixed totalWeight = 0.0;
 
-    float centerDepth = sampleLinearDepth(_CameraDepthTexture, texcoord);
+    half centerDepth = sampleLinearDepth(_CameraDepthTexture, texcoord);
 
     for (int i = -blurSize; i <= blurSize; i++) {
-        float offset = float(i);
-        float2 newCoord = texcoord;
+        half offset = half(i);
+        half2 newCoord = texcoord;
 
         // 0, 1 = x, y
         newCoord[FILTER_ITTERATION] += offset * rTexelSize[FILTER_ITTERATION];
 
-        float offsetDepth = sampleLinearDepth(_CameraDepthTexture, newCoord);
-        float depthWeight = exp(-abs(centerDepth - offsetDepth) * 4.0 / centerDepth) + 1e-4;
+        half offsetDepth = sampleLinearDepth(_CameraDepthTexture, newCoord);
+        half depthWeight = exp(-abs(centerDepth - offsetDepth) * 4.0 / centerDepth) + 1e-4;
 
-        float weight = gaussianDistribution(offset * 0.5) * depthWeight;
+        half weight = gaussianDistribution(offset * 0.5) * depthWeight;
 
         result += tex2D(VL_TEX, newCoord) * weight;
         totalWeight += weight;
@@ -68,16 +68,16 @@ float4 filterVolumetricLight(sampler2D tex, float2 texcoord) {
 fragOutput frag (v2f i) {
     fragOutput o;
 
-    float2 texcoord = i.texcoord.xy / i.texcoord.w;
+    half2 texcoord = i.texcoord.xy / i.texcoord.w;
 
     // Make sure we don't include the background when passing it throught to the vertical filter.
     #if FILTER_ITTERATION == 0
         o.color = filterVolumetricLight(VL_TEX, texcoord);
     #else
-        float4 backgroundColor = tex2D(_BackgroundTexture, texcoord);
-        float4 VolumetricLight = filterVolumetricLight(VL_TEX, texcoord);
+        half4 backgroundColor = tex2D(_BackgroundTexture, texcoord);
+        half4 VolumetricLight = filterVolumetricLight(VL_TEX, texcoord);
 
-        float3 transmittance = exp(-VolumetricLight.a * extinctionCoefficient);
+        half3 transmittance = exp(-VolumetricLight.a * extinctionCoefficient);
 
         backgroundColor.rgb = backgroundColor.rgb * transmittance + VolumetricLight.rgb;
         

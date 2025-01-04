@@ -87,7 +87,7 @@
             #include "cginc/VolumetricLight/VolumetricLight.cginc"
 
             struct v2f {
-                float4 vertex : SV_POSITION;
+                half4 vertex : SV_POSITION;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -114,8 +114,8 @@
                 return result;
             }
 
-            float4 SVPositionToClipPos(float4 pos) {
-                float4 clipPos = float4(((pos.xy / _ScreenParams.xy) * 2 - 1) * int2(1, -1), pos.z, 1);
+            half4 SVPositionToClipPos(half4 pos) {
+                half4 clipPos = float4(((pos.xy / _ScreenParams.xy) * 2 - 1) * int2(1, -1), pos.z, 1);
                 #ifdef UNITY_SINGLE_PASS_STEREO
                     clipPos.x -= 2 * unity_StereoEyeIndex;
                 #endif
@@ -141,33 +141,33 @@
 
                 fragOutput o;
 
-                float4 clipPos = SVPositionToClipPos(i.vertex);
+                half4 clipPos = SVPositionToClipPos(i.vertex);
 
-                float4 uv = ComputeScreenPos(clipPos);
+                half4 uv = ComputeScreenPos(clipPos);
 
-                float2 texcoord = uv.xy / uv.w;
-                float2 fragCoord = texcoord * _BackgroundTexture_TexelSize.zw;
+                half2 texcoord = uv.xy / uv.w;
+                half2 fragCoord = texcoord * _BackgroundTexture_TexelSize.zw;
 
-                float depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord));
+                half depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord));
 
                 float4x4 invP = CreateClipToViewMatrix();
                 float4 viewPos = mul(invP, float4(clipPos.xy / clipPos.w, depth, 1));
                 viewPos = float4(viewPos.xyz / viewPos.w, 1);
 
-                float3 worldPos = mul(UNITY_MATRIX_I_V, viewPos).xyz;
+                half3 worldPos = mul(UNITY_MATRIX_I_V, viewPos).xyz;
 
-                float3 cameraPos = (_VRChatMirrorMode > 0) ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
+                half3 cameraPos = (_VRChatMirrorMode > 0) ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
 
-                float3 worldVector = normalize(worldPos - cameraPos);
-                float3 viewVector = normalize(viewPos.xyz);
-                float linCorrect = 1.0 / -viewVector.z;
+                half3 worldVector = normalize(worldPos - cameraPos);
+                half3 viewVector = normalize(viewPos.xyz);
+                half linCorrect = 1.0 / -viewVector.z;
 
-                float3 worldPosition = worldVector * min(length(viewPos), _MaxRayLength) + cameraPos;
+                half3 worldPosition = worldVector * min(length(viewPos), _MaxRayLength) + cameraPos;
             
-                float dither = bayer16(fragCoord);
-                float3 lightDirection = normalize(_WorldSpaceLightPos0.xyz);
+                half dither = bayer16(fragCoord);
+                half3 lightDirection = normalize(_WorldSpaceLightPos0.xyz);
 
-                float4 volumetricLight = float4(0.0, 0.0, 0.0, 0.0);
+                half4 volumetricLight = float4(0.0, 0.0, 0.0, 0.0);
 
                 calculateVolumetricLight(volumetricLight, cameraPos, worldPosition, worldVector, lightDirection, dither, linCorrect);
 

@@ -1,5 +1,5 @@
-#define scatteringCoefficient float3(0.25, 0.25, 0.25)
-#define absorptionCoefficient float3(0.0, 0.0, 0.0)
+#define scatteringCoefficient half3(0.25, 0.25, 0.25)
+#define absorptionCoefficient half3(0.0, 0.0, 0.0)
 #define extinctionCoefficient (scatteringCoefficient + absorptionCoefficient)
 
 #define multiScatterTerms 8
