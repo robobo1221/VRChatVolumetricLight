@@ -88,6 +88,7 @@
 
             struct v2f {
                 half4 vertex : SV_POSITION;
+                half4x4 invP : TEXCOORD0;
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
@@ -128,6 +129,7 @@
                 UNITY_INITIALIZE_OUTPUT(v2f, o);
                 UNITY_INITIALIZE_VERTEX_OUTPUT_STEREO(o);
                 o.vertex = UnityObjectToClipPos(v.vertex);
+                o.invP = CreateClipToViewMatrix();
 
                 return o;
             }
@@ -150,26 +152,29 @@
 
                 half depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord));
 
-                float4x4 invP = CreateClipToViewMatrix();
-                float4 viewPos = mul(invP, float4(clipPos.xy / clipPos.w, depth, 1));
-                viewPos = float4(viewPos.xyz / viewPos.w, 1);
+                half4 viewPos = mul(i.invP, half4(clipPos.xy / clipPos.w, depth, 1));
+                viewPos = half4(viewPos.xyz / viewPos.w, 1);
+                half3 worldPos = mul(UNITY_MATRIX_I_V, viewPos).xyz - _WorldSpaceCameraPos;
 
-                half3 worldPos = mul(UNITY_MATRIX_I_V, viewPos).xyz;
-
-                half3 cameraPos = (_VRChatMirrorMode > 0) ? _VRChatMirrorCameraPos : _WorldSpaceCameraPos;
-
-                half3 worldVector = normalize(worldPos - cameraPos);
+                half3 worldVector = normalize(worldPos);
                 half3 viewVector = normalize(viewPos.xyz);
                 half linCorrect = 1.0 / -viewVector.z;
 
-                half3 worldPosition = worldVector * min(length(viewPos), _MaxRayLength) + cameraPos;
+                // Calculate the end position of the ray
+                half3 endPosition = worldVector * min(length(worldPos), _MaxRayLength) + _WorldSpaceCameraPos;
+
+                half4 nearPlaneView = mul(i.invP, half4(clipPos.xy / clipPos.w, UNITY_REVERSED_Z * 2.0 - 1.0, 1));
+                nearPlaneView = half4(nearPlaneView.xyz / nearPlaneView.w, 1);
+
+                // Calculate the start position of the ray
+                half3 startPosition = mul(UNITY_MATRIX_I_V, nearPlaneView).xyz;
             
                 half dither = bayer16(fragCoord);
                 half3 lightDirection = normalize(_WorldSpaceLightPos0.xyz);
 
-                half4 volumetricLight = float4(0.0, 0.0, 0.0, 0.0);
+                half4 volumetricLight = half4(0.0, 0.0, 0.0, 0.0);
 
-                calculateVolumetricLight(volumetricLight, cameraPos, worldPosition, worldVector, lightDirection, dither, linCorrect);
+                calculateVolumetricLight(volumetricLight, startPosition, endPosition, worldVector, lightDirection, dither, linCorrect);
 
                 o.color = volumetricLight;
 
