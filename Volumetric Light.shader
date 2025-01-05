@@ -92,22 +92,22 @@
                 UNITY_VERTEX_OUTPUT_STEREO
             };
 
-            float4x4 CreateClipToViewMatrix() {
-                float4x4 flipZ = float4x4(1, 0, 0, 0,
+            half4x4 CreateClipToViewMatrix() {
+                half4x4 flipZ = float4x4(1, 0, 0, 0,
                                           0, 1, 0, 0,
                                           0, 0, -1, 1,
                                           0, 0, 0, 1);
-                float4x4 scaleZ = float4x4(1, 0, 0, 0,
+                half4x4 scaleZ = float4x4(1, 0, 0, 0,
                                            0, 1, 0, 0,
                                            0, 0, 2, -1,
                                            0, 0, 0, 1);
-                float4x4 invP = unity_CameraInvProjection;
-                float4x4 flipY = float4x4(1, 0, 0, 0,
+                half4x4 invP = unity_CameraInvProjection;
+                half4x4 flipY = float4x4(1, 0, 0, 0,
                                           0, _ProjectionParams.x, 0, 0,
                                           0, 0, 1, 0,
                                           0, 0, 0, 1);
 
-                float4x4 result = mul(scaleZ, flipZ);
+                half4x4 result = mul(scaleZ, flipZ);
                 result = mul(invP, result);
                 result = mul(flipY, result);
                 result._24 *= _ProjectionParams.x;
@@ -139,6 +139,7 @@
             };
 
             fragOutput frag (v2f i) {
+                UNITY_SETUP_INSTANCE_ID(i);
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
 
                 fragOutput o;
@@ -158,7 +159,6 @@
 
                 half3 worldVector = normalize(worldPos);
                 half3 viewVector = normalize(viewPos.xyz);
-                half linCorrect = 1.0 / -viewVector.z;
 
                 // Calculate the end position of the ray
                 half3 endPosition = worldVector * min(length(worldPos), _MaxRayLength) + _WorldSpaceCameraPos;
@@ -174,7 +174,7 @@
 
                 half4 volumetricLight = half4(0.0, 0.0, 0.0, 0.0);
 
-                calculateVolumetricLight(volumetricLight, startPosition, endPosition, worldVector, lightDirection, dither, linCorrect);
+                calculateVolumetricLight(volumetricLight, startPosition, endPosition, worldVector, lightDirection, dither);
 
                 o.color = volumetricLight;
 
