@@ -139,7 +139,6 @@
             };
 
             fragOutput frag (v2f i) {
-                UNITY_SETUP_INSTANCE_ID(i);
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
 
                 fragOutput o;
