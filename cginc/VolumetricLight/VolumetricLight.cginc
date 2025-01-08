@@ -219,7 +219,7 @@ void calculateVolumetricLighting(inout half3 sunScattering, inout half3 skyScatt
     skyScattering += accumulatedSkyScattering;
 }
 
-void calculateVolumetricLight(inout half4 volumetricLight, half3 startPosition, half3 endPosition, half3 worldVector, half3 lightDirection, half dither) {
+void calculateVolumetricLight(inout half4 volumetricLight, half3 startPosition, half3 endPosition, half3 worldVector, half3 lightDirection, half dither, half linCorrect) {
     half3 extinctionCoeff = extinctionCoefficient;
 
     #ifdef _QUALITY_LOW
@@ -258,7 +258,7 @@ void calculateVolumetricLight(inout half4 volumetricLight, half3 startPosition, 
 
         half3 stepTransmittance = exp(-density * stepLength * extinctionCoeff);
 
-        half viewZ = length(rayPosition - _WorldSpaceCameraPos);
+        half viewZ = length(rayPosition - _WorldSpaceCameraPos) * linCorrect;
         half3 shadowRayPosition = getShadowRayPosition(cascades, viewZ);
 
         calculateVolumetricLighting(sunScattering, skyScattering, localScattering, rayPosition, localLights, shadowRayPosition, lightDirection, transmittance, stepTransmittance, extinctionCoeff, density, multiScatter);

@@ -159,6 +159,8 @@
                 half3 worldVector = normalize(worldPos);
                 half3 viewVector = normalize(viewPos.xyz);
 
+                half linCorrect = 1.0 / -viewVector.z;
+
                 // Calculate the end position of the ray
                 half3 endPosition = worldVector * min(length(worldPos), _MaxRayLength) + _WorldSpaceCameraPos;
 
@@ -173,7 +175,7 @@
 
                 half4 volumetricLight = half4(0.0, 0.0, 0.0, 0.0);
 
-                calculateVolumetricLight(volumetricLight, startPosition, endPosition, worldVector, lightDirection, dither);
+                calculateVolumetricLight(volumetricLight, startPosition, endPosition, worldVector, lightDirection, dither, linCorrect);
 
                 o.color = volumetricLight;
 

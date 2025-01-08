@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4f11136daadff0b44ac2278a314682ab, type: 3}
   m_Name: Volumetric Follow Box
   m_EditorClassIdentifier: 
-  serializedUdonProgramAsset: {fileID: 11400000, guid: 7a4bd942351a602458b03d64531e9105,
+  serializedUdonProgramAsset: {fileID: 11400000, guid: a73a98642166ea24493533100479b185,
     type: 2}
   udonAssembly: ".data_start\r\n\r\n    \r\n    __instance_0: %UnityEngineTransform,
     this\r\n    __value_0: %UnityEngineVector3, null\r\n    __instance_1: %UnityEngineGameObject,
@@ -164,4 +164,4 @@ MonoBehaviour:
     uid: c8807aba-1ad8-48b4-8d0f-ca092f965102
     jsonData: '{"visible":true,"layout":{"serializedVersion":"2","x":16.0,"y":137.0,"width":248.0,"height":206.0}}'
   version: 1.0.0
-  showAssembly: 0
+  showAssembly: 1
