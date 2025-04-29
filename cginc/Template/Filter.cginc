@@ -7,7 +7,6 @@ sampler2D _BackgroundTexture;
 sampler2D _CameraDepthTexture;
 
 float4 VL_TEX_SIZE;
-float _MaxRayLength;
 int _Quality;
 
 float _VRChatMirrorMode;
@@ -75,11 +74,11 @@ fragOutput frag (v2f i) {
         o.color = filterVolumetricLight(VL_TEX, texcoord);
     #else
         half4 backgroundColor = tex2D(_BackgroundTexture, texcoord);
-        half4 VolumetricLight = filterVolumetricLight(VL_TEX, texcoord);
+        half4 volumetricLight = filterVolumetricLight(VL_TEX, texcoord);
 
-        half3 transmittance = exp(-VolumetricLight.a * extinctionCoefficient);
+        half transmittance = volumetricLight.a;
 
-        backgroundColor.rgb = backgroundColor.rgb * transmittance + VolumetricLight.rgb;
+        backgroundColor.rgb = backgroundColor.rgb * transmittance + volumetricLight.rgb;
         
         o.color = backgroundColor;
     #endif

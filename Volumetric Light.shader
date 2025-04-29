@@ -1,6 +1,5 @@
 ﻿Shader "Custom/Volumetric Light" {
     Properties {
-        [HideInInspector]_NoiseTex ("Noise Texture", 2D) = "white" {}
         [HideInInspector]_ShadowMapTexture ("", any) = "" {}
         [HideInInspector]_LightProbeTexture ("Light Probe Texture", 3D) = "" {}
         [HideInInspector]_LightProbeBounds ("Light Probe Bounds", Vector) = (0, 0, 0, 0)
@@ -8,6 +7,7 @@
         [HideInInspector] Instancing ("Instancing", Float) = 1
 
         [KeywordEnum(Low, Medium, High)] _Quality ("Quality", Int) = 1   // 0 = low, 1 = medium, 2 = high
+        _NoiseTex ("Noise Texture", 2D) = "white" {}
         _Color ("Fog Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _Density ("Fog Density", Range(0.01, 5.0)) = 0.1
         _SunMult ("Light Intensity", Range(0.01, 20.0)) = 2.0
@@ -18,7 +18,6 @@
         _ForwardG ("Forward G", Range(0.0, 0.99)) = 0.8
         _BackwardG ("Backward G", Range(0.0, 0.99)) = 0.5
         _GMix ("G Mix", Range(0.0, 1.0)) = 0.5
-        _MaxRayLength ("Max Ray Length", Range(1.0, 500.0)) = 50.0
 
         [KeywordEnum(Off, On)] _LightProbeActivated ("Enable light probes", Int) = 1
     }
@@ -38,13 +37,11 @@
         Pass {
             name "Volumetric Light Pass"
             CGPROGRAM
+            #pragma exclude_renderers d3d11_9x
+            #pragma exclude_renderers d3d9
             #pragma vertex vert
             #pragma fragment frag
             #pragma target 5.0
-            #pragma exclude_renderers d3d11_9x
-            #pragma exclude_renderers d3d9
-            #pragma multi_compile_local __ _LIGHTPROBEACTIVATED_ON
-            #pragma multi_compile_local _QUALITY_LOW _QUALITY_MEDIUM _QUALITY_HIGH
 
             float _Density;
             float _SunMult;
@@ -54,13 +51,13 @@
             float _BackwardG;
             float _GMix;
             float _LocalLightFadeDist;
-            float _MaxRayLength;
             float4 _Color;
 
             int _Quality;
             
             sampler2D _CameraDepthTexture;
             sampler2D _NoiseTex;
+            sampler2D _BackgroundTexture;
 
             sampler3D _LightProbeTexture;
             float4 _LightProbeRoot;
@@ -151,6 +148,7 @@
                 half2 fragCoord = texcoord * _BackgroundTexture_TexelSize.zw;
 
                 half depth = UNITY_SAMPLE_DEPTH(tex2D(_CameraDepthTexture, texcoord));
+                bool isSky = depth >= 1.0 || depth <= 0.0;
 
                 half4 viewPos = mul(i.invP, half4(clipPos.xy / clipPos.w, depth, 1));
                 viewPos = half4(viewPos.xyz / viewPos.w, 1);
@@ -162,7 +160,7 @@
                 half linCorrect = 1.0 / -viewVector.z;
 
                 // Calculate the end position of the ray
-                half3 endPosition = worldVector * min(length(worldPos), _MaxRayLength) + _WorldSpaceCameraPos;
+                half3 endPosition = worldVector * length(worldPos) + _WorldSpaceCameraPos;
 
                 half4 nearPlaneView = mul(i.invP, half4(clipPos.xy / clipPos.w, UNITY_REVERSED_Z * 2.0 - 1.0, 1));
                 nearPlaneView = half4(nearPlaneView.xyz / nearPlaneView.w, 1);
@@ -170,14 +168,19 @@
                 // Calculate the start position of the ray
                 half3 startPosition = mul(UNITY_MATRIX_I_V, nearPlaneView).xyz;
             
-                half dither = bayer16(fragCoord);
+                float dither = bayer32(fragCoord);
                 half3 lightDirection = normalize(_WorldSpaceLightPos0.xyz);
 
-                half4 volumetricLight = half4(0.0, 0.0, 0.0, 0.0);
+                half4 backgroundColor = tex2D(_BackgroundTexture, texcoord);
+                half4 volumetricLight = half4(0.0, 0.0, 0.0, 1.0);
 
-                calculateVolumetricLight(volumetricLight, startPosition, endPosition, worldVector, lightDirection, dither, linCorrect);
+                calculateVolumetricLight(volumetricLight, backgroundColor, startPosition, endPosition, worldVector, lightDirection, dither, linCorrect, isSky);
+                
+                backgroundColor.rgb = backgroundColor.rgb * volumetricLight.a + volumetricLight.rgb;
+                
+                o.color = backgroundColor;
 
-                o.color = volumetricLight;
+                //o.color = volumetricLight;
 
                 return o;
             }
@@ -185,45 +188,49 @@
             ENDCG
         }
         
-        GrabPass {
-            "_VolumeLightTexture"
-        }
+        // GrabPass {
+        //     "_VolumeLightTexture"
+        // }
 
-        pass {
-            name "Volumetric Light X filter"
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            #pragma target 5.0
+        // pass {
+        //     name "Volumetric Light X filter"
+        //     CGPROGRAM
+        //     #pragma exclude_renderers d3d11_9x
+        //     #pragma exclude_renderers d3d9
+        //     #pragma vertex vert
+        //     #pragma fragment frag
+        //     #pragma target 5.0
 
-            #define FILTER_ITTERATION 0   // 0 = x, 1 = y
-            #define VL_TEX _VolumeLightTexture
-            #define VL_TEX_SIZE _VolumeLightTexture_TexelSize
+        //     #define FILTER_ITTERATION 0   // 0 = x, 1 = y
+        //     #define VL_TEX _VolumeLightTexture
+        //     #define VL_TEX_SIZE _VolumeLightTexture_TexelSize
 
-            #include "cginc/Template/Filter.cginc"
+        //     #include "cginc/Template/Filter.cginc"
 
-            ENDCG
-        }
+        //     ENDCG
+        // }
 
-        GrabPass {
-            "_VolumeLightTextureX"
-        }
+        // GrabPass {
+        //     "_VolumeLightTextureX"
+        // }
 
-        pass {
-            name "Volumetric Light Y filter"
-            CGPROGRAM
-            #pragma vertex vert
-            #pragma fragment frag
-            #pragma target 5.0
+        // pass {
+        //     name "Volumetric Light Y filter"
+        //     CGPROGRAM
+        //     #pragma exclude_renderers d3d11_9x
+        //     #pragma exclude_renderers d3d9
+        //     #pragma vertex vert
+        //     #pragma fragment frag
+        //     #pragma target 5.0
 
-            #define FILTER_ITTERATION 1   // 0 = x, 1 = y
-            #define VL_TEX _VolumeLightTextureX
-            #define VL_TEX_SIZE _VolumeLightTextureX_TexelSize
+        //     #define FILTER_ITTERATION 1   // 0 = x, 1 = y
+        //     #define VL_TEX _VolumeLightTextureX
+        //     #define VL_TEX_SIZE _VolumeLightTextureX_TexelSize
 
-            #include "cginc/Template/Filter.cginc"
+        //     #include "cginc/Template/Filter.cginc"
 
-            ENDCG
-        }
+        //     ENDCG
+        // }
         
     }
 }

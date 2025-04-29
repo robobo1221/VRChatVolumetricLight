@@ -12,8 +12,8 @@ half dualLobePhase(half NoV) {
 }
 
 half dualLobePhase(half NoV, half g1, half g2) {
-    half phase1 = phaseG(NoV, _ForwardG);
-    half phase2 = phaseG(NoV, -_BackwardG);
+    half phase1 = phaseG(NoV, g1);
+    half phase2 = phaseG(NoV, -g2);
 
     return lerp(phase2, phase1, _GMix);
 }
