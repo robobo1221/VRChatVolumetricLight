@@ -15,6 +15,10 @@ half3 cubeSmooth(half3 x) {
     return x * x * (3.0 - 2.0 * x);
 }
 
+half Calculate2DNoise(half2 position) {
+    return tex2D(_NoiseTex, position / _NoiseTex_TexelSize.zw).r;
+}
+
 half Calculate3DNoise(half3 position){
     half3 p = floor(position);
     half3 b = cubeSmooth(position - p);

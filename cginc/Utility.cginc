@@ -28,3 +28,5 @@ half2 rsi(half3 position, half3 direction, half radius) {
 
     return -PoD + half2(-delta, delta);
 }
+
+#define nAbs(x) abs(x + 1e-6)

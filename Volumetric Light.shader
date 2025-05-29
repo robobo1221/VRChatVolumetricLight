@@ -135,6 +135,10 @@
                 float4 color : COLOR;
             };
 
+            half calculateHeightFactor(half height, half heightOffset, half heightFalloff) {
+                return exp(-max(height * heightFalloff - heightOffset, 0.0));
+            }
+
             fragOutput frag (v2f i) {
                 UNITY_SETUP_STEREO_EYE_INDEX_POST_VERTEX(i);
 
@@ -176,6 +180,9 @@
 
                 calculateVolumetricLight(volumetricLight, backgroundColor, startPosition, endPosition, worldVector, lightDirection, dither, linCorrect, isSky);
                 
+                half3 skyTransmittance = exp(-length(viewPos.xyz) * fogCoeff / scale);
+
+                backgroundColor.rgb = calculateHeightFog(backgroundColor.rgb, worldPos.xyz + _WorldSpaceCameraPos, length(viewPos.xyz), 1.0);
                 backgroundColor.rgb = backgroundColor.rgb * volumetricLight.a + volumetricLight.rgb;
                 
                 o.color = backgroundColor;

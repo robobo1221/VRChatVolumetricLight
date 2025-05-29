@@ -29,9 +29,12 @@ half calculateDensity(half3 rayPosition) {
     half noise = calculateCloudFBM(rayPosition * 0.001 / scale, wind * 0.1);
     noise = noise * noise * (3.0 - 2.0 * noise);
 
+    half localCoverage = Calculate2DNoise(rayPosition.xz * 2e-4 / scale + wind.xz * 0.001);
+    localCoverage = saturate(localCoverage * 4.0 - 0.75);
+
     half bottomGradient = saturate((height - minHeight) / slopeThicknessBottom);
     half topGradient = saturate((maxHeight - height) / slopeThicknessTop);
-    half clouds = saturate((noise * 2.0 * bottomGradient * topGradient - 0.5)) * bottomGradient;
+    half clouds = saturate((noise * 2.0 * bottomGradient * topGradient * localCoverage - 0.5)) * bottomGradient;
 
     return clouds * _Density / scale;
 }
@@ -185,7 +188,7 @@ void calculateVolumetricLighting(inout half sunScattering, inout half skyScatter
     half powderView = 1.0 - exp(-opticalDepth * 2.0 * extinctionCoeff);
 
     half height = (rayPosition.y - minHeight) / thickness;
-    half heightTerm = pow(height, height + 1.0) + height + 1.0;
+    half heightTerm = pow(powderSun, height + 1.0) + height + 1.0;
 
     half powder = powderSun * heightTerm;
 
@@ -206,6 +209,27 @@ void calculateVolumetricLighting(inout half sunScattering, inout half skyScatter
     skyScattering += accumulatedSkyScattering;
 }
 
+float3 calculateHeightFog(float3 backgroundColor, half3 position, half depth, half mask) {
+    half3 fogColor = unity_IndirectSpecColor.rgb * unity_IndirectSpecColor.a * PI * 0.5;
+    half height = position.y;
+    half heightOffset = 0.0;
+    half heightFalloff = 0.05;
+
+    float yc   = _WorldSpaceCameraPos.y - heightOffset;
+    float yf   = height - heightOffset;
+
+    float expC = exp(-yc * heightFalloff);
+    float expF = exp(-yf * heightFalloff);
+
+    // optical depth (analytic)
+    half3 tau  = fogCoeff / scale * abs(expF - expC) / heightFalloff * depth / nAbs(position.y - _WorldSpaceCameraPos.y);
+
+    // fog factor
+    half3 fog  = 1.0 - exp(-tau);
+
+    return backgroundColor.rgb * (1.0 - fog) + fogColor * fog * mask;
+}
+
 void calculateVolumetricLight(inout half4 volumetricLight, half3 backgroundColor, half3 startPosition, half3 endPosition, half3 worldVector, half3 lightDirection, half dither, half linCorrect, bool isSky) {
     half3 extinctionCoeff = extinctionCoefficient;
 
@@ -213,7 +237,7 @@ void calculateVolumetricLight(inout half4 volumetricLight, half3 backgroundColor
 
     const half rSteps = 1.0 / float(VL_STEPS);
 
-    float2 planetSphere = rsi(half3(0.0, earthRadius + _WorldSpaceCameraPos.y, 0.0), worldVector, earthRadius);
+    float2 planetSphere = rsi(half3(0.0, earthRadius + 1.0, 0.0), worldVector, earthRadius);
     if (planetSphere.y > 0.0 && _WorldSpaceCameraPos.y < minHeight) {
         return;
     }
@@ -302,9 +326,9 @@ void calculateVolumetricLight(inout half4 volumetricLight, half3 backgroundColor
     volumetricLight.xyz = (sunLighting + skyLighting) * _Color * PI;
     volumetricLight.a = transmittance;
 
-    if (!isSky) {
-        return;
-    }
-    half3 skyTransmittance = saturate(exp(-length(stepPos.xyz) * half3(1.0, 2.0, 3.0) * 1e-5 / scale) + 0.1);
-    volumetricLight.xyz = volumetricLight.xyz * skyTransmittance + backgroundColor * (1.0 - skyTransmittance) * (1.0 - transmittance);
+    half3 skyTransmittance = exp(-length(stepPos.xyz) * fogCoeff / scale);
+
+    float3 fogColor = unity_IndirectSpecColor.rgb * unity_IndirectSpecColor.a * PI * 0.5;
+    
+    volumetricLight.xyz = calculateHeightFog(volumetricLight.xyz, stepPos.xyz + _WorldSpaceCameraPos, length(stepPos), (1.0 - transmittance));
 }
