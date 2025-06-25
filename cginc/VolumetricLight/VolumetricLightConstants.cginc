@@ -7,7 +7,7 @@
 #define multiScatterCoeffB 0.5
 #define multiScatterCoeffC 0.5
 
-#define scale 0.04
+#define scale 0.05
 
 #define minHeight (1000.0 * scale)
 #define maxHeight (2000.0 * scale)
@@ -18,4 +18,8 @@
 
 #define earthRadius (6371000.0 * scale)
 
-#define fogCoeff (half3(1.0, 2.0, 3.0) * 1e-4)
+#define fogHeightFalloffRayleigh (0.00025 / scale)
+#define fogHeightFalloffMie (0.01 / scale)
+
+#define fogCoeffRayleigh (half3( 7.8, 15.5, 33.1 ) * 2.0e-6)
+#define fogCoeffMie (half3(1.0, 1.0, 1.0) * 3.0e-4)

@@ -8,6 +8,7 @@
 
         [KeywordEnum(Low, Medium, High)] _Quality ("Quality", Int) = 1   // 0 = low, 1 = medium, 2 = high
         _NoiseTex ("Noise Texture", 2D) = "white" {}
+        _BlueNoiseTex ("Blue Noise Texture", 2D) = "white" {}
         _Color ("Fog Color", Color) = (1.0, 1.0, 1.0, 1.0)
         _Density ("Fog Density", Range(0.01, 5.0)) = 0.1
         _SunMult ("Light Intensity", Range(0.01, 20.0)) = 2.0
@@ -23,7 +24,7 @@
     }
 
     SubShader {
-        Tags { "Queue"="Transparent+3" "LightMode"="Vertex"}
+        Tags { "Queue"="Transparent+3" "LightMode"="Always" "IgnoreProjector"="True" }
         // No culling or depth
         Cull Off ZWrite Off ZTest Always
 
@@ -58,6 +59,7 @@
             sampler2D _CameraDepthTexture;
             sampler2D _NoiseTex;
             sampler2D _BackgroundTexture;
+            sampler2D _BlueNoiseTex;
 
             sampler3D _LightProbeTexture;
             float4 _LightProbeRoot;
@@ -66,6 +68,7 @@
 
             float4 _BackgroundTexture_TexelSize;
             float4 _NoiseTex_TexelSize;
+            float4 _BlueNoiseTex_TexelSize;
 
             float _VRChatMirrorMode;
             float3 _VRChatMirrorCameraPos;
@@ -172,23 +175,21 @@
                 // Calculate the start position of the ray
                 half3 startPosition = mul(UNITY_MATRIX_I_V, nearPlaneView).xyz;
             
-                float dither = bayer32(fragCoord);
+                //float dither = bayer128(fragCoord);
+                float dither = tex2D(_BlueNoiseTex, fragCoord / _BlueNoiseTex_TexelSize.zw).r;
                 half3 lightDirection = normalize(_WorldSpaceLightPos0.xyz);
 
                 half4 backgroundColor = tex2D(_BackgroundTexture, texcoord);
                 half4 volumetricLight = half4(0.0, 0.0, 0.0, 1.0);
 
                 calculateVolumetricLight(volumetricLight, backgroundColor, startPosition, endPosition, worldVector, lightDirection, dither, linCorrect, isSky);
-                
-                half3 skyTransmittance = exp(-length(viewPos.xyz) * fogCoeff / scale);
 
-                backgroundColor.rgb = calculateHeightFog(backgroundColor.rgb, worldPos.xyz + _WorldSpaceCameraPos, length(viewPos.xyz), 1.0);
+                half skyDepthHeightFog = 1e32;
+
+                backgroundColor.rgb = calculateHeightFog(backgroundColor.rgb, isSky ? worldVector * skyDepthHeightFog : worldPos.xyz + _WorldSpaceCameraPos, isSky ? skyDepthHeightFog : length(viewPos.xyz), 1.0);
                 backgroundColor.rgb = backgroundColor.rgb * volumetricLight.a + volumetricLight.rgb;
                 
                 o.color = backgroundColor;
-
-                //o.color = volumetricLight;
-
                 return o;
             }
 
