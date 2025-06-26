@@ -29,17 +29,18 @@ half calculateDensity(half3 rayPosition) {
     half coverage = Calculate2DNoise(rayPosition.xz * 0.001 / scale + wind.xz * 0.1);
 
     half erosion = calculateCloudFBM(rayPosition * 0.005 / scale, wind * 0.1);
-    erosion = erosion * erosion * (3.0 - 2.0 * erosion);
     
     half bottomGradient = saturate((height - minHeight) / slopeThicknessBottom);
     half topGradient = saturate((maxHeight - height) / slopeThicknessTop);
-    half verticalCoverage = 1.0 - bottomGradient * topGradient;
+    half verticalCoverage = bottomGradient * topGradient;
     verticalCoverage = verticalCoverage * verticalCoverage * (3.0 - 2.0 * verticalCoverage);
 
     half localCoverage = Calculate2DNoise(rayPosition.xz * 2e-4 / scale + wind.xz * 0.01);
     localCoverage = saturate(localCoverage * 4.0 - 1.0);
 
-    half clouds = saturate((coverage * 2.0 * localCoverage - 1.0 - verticalCoverage - erosion * 0.75));
+    half actualCoverage = 0.6;
+
+    half clouds = saturate(((coverage - 1.0 + actualCoverage * verticalCoverage) * 2.0 * localCoverage) - erosion * 0.75);
 
     return clouds * _Density / scale;
 }
