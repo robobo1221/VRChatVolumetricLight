@@ -7,7 +7,7 @@
 #define multiScatterCoeffB 0.5
 #define multiScatterCoeffC 0.5
 
-#define scale 0.05
+#define scale 0.075
 
 #define minHeight (1000.0 * scale)
 #define maxHeight (2000.0 * scale)

@@ -38,7 +38,7 @@ half calculateDensity(half3 rayPosition) {
     half localCoverage = Calculate2DNoise(rayPosition.xz * 2e-4 / scale + wind.xz * 0.01);
     localCoverage = saturate(localCoverage * 4.0 - 1.0);
 
-    half actualCoverage = 0.6;
+    half actualCoverage = 0.5;
 
     half clouds = saturate(((coverage - 1.0 + actualCoverage * verticalCoverage) * 2.0 * localCoverage) - erosion * 0.75);
 
@@ -46,7 +46,7 @@ half calculateDensity(half3 rayPosition) {
 }
 
 half calculateDepthAlongRay(half3 rayPosition, half3 direction) {
-    static uint steps = 8;
+    static uint steps = 10;
     const half rSteps = 1.0 / float(steps);
     
     half rayLength = 10.0 * scale;
@@ -198,7 +198,7 @@ void calculateVolumetricLighting(inout half sunScattering, inout half skyScatter
     half heightTerm = pow(powderSun, height + 1.0) + height + 1.0;
 
     half powder = powderSun * heightTerm;
-    //half powderAmbient = powderView * (pow(powderView, 1.0 / height + 1.0) + height + 1.0);
+    half powderAmbient = (height * 2.0 + 1.0);
 
     half currA = 1.0;
     half currB = 1.0;
@@ -208,7 +208,7 @@ void calculateVolumetricLighting(inout half sunScattering, inout half skyScatter
     [unroll(multiScatterTerms)]
     for (uint i = 0; i < multiScatterTerms; ++i) {
         half sunPhase = multiScatter.phases[i];
-        calculateVolumetricLighting(sunScattering, accumulatedSkyScattering, transmittance, scatteringIntegral, extinctionCoeff, rayPosition, depthAlongRay, sunPhase, powder, 1.0, currA, currB);
+        calculateVolumetricLighting(sunScattering, accumulatedSkyScattering, transmittance, scatteringIntegral, extinctionCoeff, rayPosition, depthAlongRay, sunPhase, powder, powderAmbient, currA, currB);
         
         currA *= multiScatterCoeffA;
         currB *= multiScatterCoeffB;
@@ -351,7 +351,7 @@ void calculateVolumetricLight(inout half4 volumetricLight, half3 backgroundColor
 
     half3 skyLighting = skyScattering * phaseSky * unity_IndirectSpecColor.rgb * unity_IndirectSpecColor.a;
 
-    volumetricLight.xyz = (sunLighting + skyLighting) * _Color * PI;
+    volumetricLight.xyz = (skyLighting + sunLighting) * _Color * PI;
     volumetricLight.a = transmittance;
     
     volumetricLight.xyz = calculateHeightFog(volumetricLight.xyz, stepPos.xyz + _WorldSpaceCameraPos, length(stepPos), (1.0 - transmittance));
